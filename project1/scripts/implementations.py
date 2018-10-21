@@ -127,10 +127,9 @@ def least_squares(y, tx):
 def ridge_regression(y, tx, lambda_):
     """Implement ridge regression using normal equations."""
     
-    N = y.shape[0]
-    D = tx.shape[1]
-    a = tx.T @ tx + lambda_* 2 * N * np.eye(D)
-    b = tx.T @ y
+    aI = 2 * tx.shape[0] * lambda_ * np.identity(tx.shape[1])
+    a = tx.T.dot(tx) + aI
+    b = tx.T.dot(y)
     w = np.linalg.solve(a, b)
     loss = compute_mse(y, tx, w)
     
