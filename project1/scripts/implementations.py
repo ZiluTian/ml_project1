@@ -16,7 +16,7 @@ def load_clean_csv(data_path, sub_sample=False, missing_val="ignore", normalized
     missing_ind = get_missing_index(input_data)
     
     incomplete_features = np.unique(np.where(input_data == -999.0)[1])
-    print('Features with missing data: ', incomplete_features)
+    # print('Features with missing data: ', incomplete_features)
     
     if (missing_val=="avg"): 
         mean = np.mean(input_data[~missing_ind], 0)
@@ -32,7 +32,6 @@ def load_clean_csv(data_path, sub_sample=False, missing_val="ignore", normalized
         yb = yb[~missing_ind]
         input_data = input_data[~missing_ind]
         ids = ids[~missing_ind]
-    # if not ignore missing val, replace it with average 
         
     if normalized: 
         input_m = np.mean(input_data,0)
