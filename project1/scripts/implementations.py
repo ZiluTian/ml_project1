@@ -20,12 +20,12 @@ def load_clean_csv(data_path, sub_sample=False, missing_val="ignore", normalized
     
     if (missing_val=="avg"): 
         mean = np.mean(input_data[~missing_ind], 0)
-        print(mean)
+    #    print(mean)
         for i in incomplete_features:
             np.place(input_data[:,i], input_data[:,i] == -999, mean[i])
     elif (missing_val=="median"): 
         median = np.median(input_data[~missing_ind], 0)
-        print(median)
+    #    print(median)
         for i in incomplete_features:
             np.place(input_data[:,i], input_data[:,i] == -999, median[i])
     else:  
