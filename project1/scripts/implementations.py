@@ -16,16 +16,13 @@ def load_clean_csv(data_path, sub_sample=False, missing_val="ignore", normalized
     missing_ind = get_missing_index(input_data)
     
     incomplete_features = np.unique(np.where(input_data == -999.0)[1])
-    # print('Features with missing data: ', incomplete_features)
     
     if (missing_val=="avg"): 
         mean = np.mean(input_data[~missing_ind], 0)
-    #    print(mean)
         for i in incomplete_features:
             np.place(input_data[:,i], input_data[:,i] == -999, mean[i])
     elif (missing_val=="median"): 
         median = np.median(input_data[~missing_ind], 0)
-    #    print(median)
         for i in incomplete_features:
             np.place(input_data[:,i], input_data[:,i] == -999, median[i])
     else:  
@@ -40,6 +37,54 @@ def load_clean_csv(data_path, sub_sample=False, missing_val="ignore", normalized
     
     return yb, input_data, ids
 
+def pairwise_correlation(y, input_data): 
+    """Compute pairwise correlation coefficient"""
+    coef_vec = []
+    for column in range(input_data.shape[1]): 
+        coef_vec.append(np.corrcoef(y, input_data[:,column])[0,1])
+    return np.abs(coef_vec)
+
+def correlation_matrix(input_data, feature_list): 
+    """Compute the correlation matrix"""
+    feature_num = len(feature_list)
+    corr_matrix = np.array([[0.1 for i in range(feature_num)] for j in range(feature_num)])
+    for i in range(feature_num): 
+        foo = feature_list[i]
+        for j in range(feature_num): 
+            bar = feature_list[j]
+            corr_matrix[i][j]=np.corrcoef(input_data[:,foo], input_data[:,bar])[0,1]
+       
+    return np.abs(corr_matrix)
+
+def feature_select(coef_vec, feature_threshold): 
+    """Return a list of features with correlation coefficient above feature threshold"""
+    return [i for i, x in enumerate(coef_vec) if x>feature_threshold]
+
+def feature_extract(feature_list, corr_matrix, duplicate_threshold):
+    """Extract from feature list features that are NOT highly correlated based on duplicate threshold"""
+    # Filter out the indices of highly correlated features in corr_matrix 
+    repeated_ind = np.where(corr_matrix>duplicate_threshold)
+    dup_ind = np.unique(list(np.array(repeated_ind[1])[repeated_ind[0]-repeated_ind[1]!=0]))
+    dup_features = [feature_list[i] for i in dup_ind]
+    return [feature for feature in feature_list if feature not in dup_features]
+    
+def find_lambda(lambdas, y, tx, k_indices, k_fold, degree): 
+    """Return the optimal lambda along with rmse_tr and rmse_te. Based on cross_validation using ridge regression"""
+    rmse_tr = []
+    rmse_te = []
+    for l in lambdas:
+        rmse_tr_tmp = []
+        rmse_te_tmp = []
+        for k in range(k_fold):
+            loss_tr, loss_te, w = cross_validation(y, tx, k_indices, k, l, degree)
+            rmse_tr_tmp.append(loss_tr)
+            rmse_te_tmp.append(loss_te)
+        rmse_tr.append(np.mean(np.sqrt(2*rmse_tr_tmp)))
+        rmse_te.append(np.mean(np.sqrt(2*rmse_te_tmp)))
+        
+    opt_lambda = lambdas[np.argmin(rmse_te)]
+    return opt_lambda, rmse_tr, rmse_te 
+    
 def compute_score(y_test, y_pred):
     if len(y_pred)== len(y_test):
         ones_aux = np.ones(len(y_pred))
@@ -60,6 +105,31 @@ def compute_mse(y, tx, w):
     
     return mse
 
+def build_k_indices(y, k_fold, seed):
+    """build k indices for k-fold."""
+    num_row = y.shape[0]
+    interval = int(num_row / k_fold)
+    np.random.seed(seed)
+    indices = np.random.permutation(num_row)
+    k_indices = [indices[k * interval: (k + 1) * interval]
+                 for k in range(k_fold)]
+    return np.array(k_indices)
+
+def cross_validation(y, tx, k_indices, k, lambda_, degree):
+    """return the loss of ridge regression."""
+    # ***************************************************
+    y_te = y[k_indices[k]]    
+    tx_te = tx[k_indices[k]]
+    
+    y_tr = np.delete(y, k_indices[k], axis=0)
+    tx_tr = np.delete(tx, k_indices[k], axis=0)
+    # ***************************************************
+    w, loss_tr = ridge_regression(y_tr, tx_tr, lambda_)
+    # ***************************************************
+    loss_te = compute_mse(y_te, tx_te, w)
+    loss_tr = compute_mse(y_tr, tx_tr, w)
+    # ***************************************************
+    return loss_tr, loss_te, w
 
 def build_poly(x, degree):
     """Polynomial basis functions for input data x, for j=0 up to j=degree."""
