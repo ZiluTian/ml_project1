@@ -72,6 +72,8 @@ def find_lambda(lambdas, y, tx, k_indices, k_fold, degree):
     """Return the optimal lambda along with rmse_tr and rmse_te. Based on cross_validation using ridge regression"""
     rmse_tr = []
     rmse_te = []
+    w_init = np.zeros(tx.shape[1])
+        
     for l in lambdas:
         rmse_tr_tmp = []
         rmse_te_tmp = []
@@ -83,7 +85,20 @@ def find_lambda(lambdas, y, tx, k_indices, k_fold, degree):
         rmse_te.append(np.mean(np.sqrt(2*rmse_te_tmp)))
         
     opt_lambda = lambdas[np.argmin(rmse_te)]
-    return opt_lambda, rmse_tr, rmse_te 
+    return opt_lambda, rmse_tr, rmse_te
+      
+    
+def find_weight(y, tx, k_indices, opt_lambda, k_fold, degree): 
+    """Return averaged weight using ridge regression"""
+    w_init = np.zeros(tx.shape[1])
+    rmse_tr_tmp = []
+    
+    for k in range(k_fold):
+        loss_tr, loss_te, w = cross_validation(y, tx, k_indices, k, opt_lambda, degree)
+        w = w_init + w
+        rmse_tr_tmp.append(loss_tr)
+    return w/k_fold, np.mean(np.sqrt(2*rmse_tr_tmp))
+    
     
 def compute_score(y_test, y_pred):
     if len(y_pred)== len(y_test):
@@ -115,7 +130,7 @@ def build_k_indices(y, k_fold, seed):
                  for k in range(k_fold)]
     return np.array(k_indices)
 
-def cross_validation(y, tx, k_indices, k, lambda_, degree):
+def cross_validation(y, tx, k_indices, k, lambda_, degree, opt="ridge"):
     """return the loss of ridge regression."""
     # ***************************************************
     y_te = y[k_indices[k]]    
