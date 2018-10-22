@@ -40,6 +40,16 @@ def load_clean_csv(data_path, sub_sample=False, missing_val="ignore", normalized
     
     return yb, input_data, ids
 
+def compute_score(y_test, y_pred):
+    if len(y_pred)== len(y_test):
+        ones_aux = np.ones(len(y_pred))
+        correct = np.sum(ones_aux[np.equal(y_test, y_pred)])
+        incorrect = len(y_pred)-correct
+        perc = correct / len(y_pred) * 100
+        print("Total correct:", correct, "\nTotal incorrect:", incorrect, "\nCorrect percentage:", perc, "%")
+    else:
+        print("Data have different sizes.")
+
 
         
 def compute_mse(y, tx, w):
