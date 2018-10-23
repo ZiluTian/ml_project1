@@ -67,7 +67,36 @@ def feature_extract(feature_list, corr_matrix, duplicate_threshold):
     dup_ind = np.unique(list(np.array(repeated_ind[1])[repeated_ind[0]-repeated_ind[1]!=0]))
     dup_features = [feature_list[i] for i in dup_ind]
     return [feature for feature in feature_list if feature not in dup_features]
+
+def stepwise_regression(inputs, y):
+    """Perform forward selection, where 1st order models are evaluated using least squares resulting MSE score. The function returns a vector of features ordered by their contribution to reducing the MSE score."""
+    queue = list(range(inputs.shape[1]))
+    selected = []
+    feats = []
+    current_score, best_score = 10.0e8, 10.0e8
     
+    while any(queue) and current_score == best_score:
+        scores_candidates = []
+        
+        # Test all feature-candidates
+        for candidate in queue:
+            feats = selected + [candidate]
+            poly_basis = build_poly(inputs[:, feats], 1)
+            _, score = least_squares(y, poly_basis)
+            scores_candidates.append((score, candidate))
+        
+        # Selects the best feature-candidate
+        scores_candidates.sort(reverse = True)
+        best_score, best_candidate = scores_candidates.pop()
+        
+        # Keeps the feature in the model in case the score has improved
+        if current_score > best_score:
+            queue.remove(best_candidate)
+            selected.append(best_candidate)
+            current_score = best_score
+    feats = selected
+    return feats
+
 def find_lambda(lambdas, y, tx, k_indices, k_fold, degree): 
     """Return the optimal lambda along with rmse_tr and rmse_te. Based on cross_validation using ridge regression"""
     rmse_tr = []
