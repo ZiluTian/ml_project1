@@ -100,7 +100,7 @@ def cross_validation_helper(y, tx, k_indices, k, model_name, *func_args):
     tx_tr = np.delete(tx, k_indices[k], axis=0)
                
     # ***************************************************
-    w, _ = model_name(y, tx, *func_args)
+    w, _ = model_name(y_tr, tx_tr, *func_args)
     # ***************************************************
     loss_te = compute_mse(y_te, tx_te, w)
     loss_tr = compute_mse(y_tr, tx_tr, w)
