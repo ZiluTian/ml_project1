@@ -43,7 +43,7 @@ def stepwise_regression(inputs, y):
     selected = []
     feats = []
     current_score, best_score = 10.0e8, 10.0e8
-    
+    scores_plot = []
     while any(queue) and current_score == best_score:
         scores_candidates = []
         
@@ -56,6 +56,7 @@ def stepwise_regression(inputs, y):
         
         # Selects the best feature-candidate
         scores_candidates.sort(reverse = True)
+        
         best_score, best_candidate = scores_candidates.pop()
         
         # Keeps the feature in the model in case the score has improved
@@ -63,5 +64,6 @@ def stepwise_regression(inputs, y):
             queue.remove(best_candidate)
             selected.append(best_candidate)
             current_score = best_score
+            scores_plot.append((best_score, best_candidate))
     feats = selected
-    return feats
+    return feats, scores_plot
