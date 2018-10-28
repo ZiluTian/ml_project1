@@ -3,6 +3,8 @@ Project 1, Machine Learning, EPFL
 Date: Oct 25, 2018 
 Team members: Virginia Bordignon, Zilu Tian, Tatiana Volkova 
 
+Please make sure "train.csv" and "test.csv" are in the same folder as run.py 
+
 Detailed steps
 1. Data preprocessing
 	"load_clean_csv" is a helper function that build on load_csv. Additional arguments include missing_val and normalized. 
