@@ -1,4 +1,5 @@
 import numpy as np
+import itertools as it
 
 def split_data(x, y, ratio, seed=1):
     """split the dataset based on the split ratio."""
@@ -38,6 +39,19 @@ def build_poly(x, degree):
         poly = np.c_[poly, np.power(x, deg)]
     return poly
 
+def build_poly_plus(x, degree):
+    """
+    Builds polynomial basis function of a certain degree combining all features.
+    """
+    poly = np.ones((len(x), 1))
+
+    for deg in range(1, degree+1):
+        if deg == 1:
+            poly = np.c_[poly, x]
+        else:
+            for i in it.combinations_with_replacement(range(x.shape[1]),deg):
+                poly = np.c_[poly, np.prod(x[:,i],1)]
+    return poly
 
 def build_k_indices(y, k_fold, seed):
     """build k indices for k-fold."""
