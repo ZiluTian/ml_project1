@@ -1,30 +1,30 @@
 import numpy as np
-from proj1_preprocessing import * 
-from proj1_utils import * 
+from proj1_preprocessing import *
+from proj1_utils import *
 
-    
+
 def ridge_regression(y, tx, lambda_):
     """Implement ridge regression using normal equations."""
-    
+
     aI = 2 * tx.shape[0] * lambda_ * np.identity(tx.shape[1])
     a = tx.T.dot(tx) + aI
     b = tx.T.dot(y)
     w = np.linalg.solve(a, b)
     loss = compute_mse(y, tx, w)
-    
+
     return w, loss
 
-            
+
 def least_squares_GD(y, tx, initial_w, max_iters, gamma):
     """Linear regression using gradient descent algorithm."""
-    
+
     # Define parameters to store w and loss
     ws = [initial_w]
     losses = []
     w = initial_w
     for n_iter in range(max_iters):
         # compute gradient for MSE
-        g = compute_gradient(y, tx, w)        
+        g = compute_gradient(y, tx, w)
         loss = compute_mse(y, tx, w)
         # update parameters vector
         w = w - gamma*g
@@ -33,19 +33,19 @@ def least_squares_GD(y, tx, initial_w, max_iters, gamma):
         losses.append(loss)
 #         print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
 #               bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
-        
+
     return w, loss
 
 
 def least_squares_SGD(y, tx, initial_w, max_iters, gamma):
     """Linear regression using stochastic gradient descent algorithm."""
-    
+
     ws = [initial_w]
     losses = []
     w = initial_w
-    #zt double check batch size 
+    #zt double check batch size
     batch_size = 20
-    
+
     for n_iter in range(max_iters):
         # create one minibatch of size batch_size
         for minibatch_y, minibatch_tx in batch_iter(y, tx, batch_size):
@@ -58,18 +58,18 @@ def least_squares_SGD(y, tx, initial_w, max_iters, gamma):
         losses.append(loss)
 #         print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
 #               bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
-        
+
     return w, loss
 
 
 def least_squares(y, tx):
     """Calculate the least squares using normal equations."""
-    
+
     a = tx.T @ tx
     b = tx.T @ y
     w = np.linalg.solve(a, b)
     loss = compute_mse(y, tx, w)
-    
+
     return w, loss
 
 
@@ -95,16 +95,16 @@ def logistic_entropy_loss(y, tx, w):
     for i in range(0, len(y)):
         x = tx[i, :]
         sigma = logistic_sigmoid(np.dot(x, w))
-        loss += y[i] * np.log(sigma) + (1 - y[i]) * np.log(1 - sigma)
+        loss = loss + y[i] * np.log(sigma) + (1 - y[i]) * np.log(1 - sigma)
 
     return -loss
 
 def reg_logistic_entropy_loss(y, tx, w, lambda_, reg='L2'):
     loss = logistic_entropy_loss(y, tx, w)
     if reg == 'L2':
-        loss += lambda_ * np.linalg.norm(w, 2)
+        loss = loss + lambda_ * np.linalg.norm(w, 2)
     elif reg == 'L1':
-        loss += lambda_ * np.linalg.norm(w, 1)
+        loss = loss + lambda_ * np.linalg.norm(w, 1)
     else:
         raise ValueError('Unknown regularisation method')
 
@@ -117,14 +117,14 @@ def logistic_gradient(y, tx, w):
     for i in range(0, r):
         x = tx[i, :]
         sigma = logistic_sigmoid(np.dot(x, w))
-        grad += (sigma - y[i]) * x.T
+        grad = grad + (sigma - y[i]) * x.T
 
     return grad
 
 
 def reg_logistic_gradient(y, tx, w, lambda_, reg='L2'):
     grad = logistic_gradient(y, tx, w)
-    grad += 2 * lambda_ * w
+    grad = grad + 2 * lambda_ * w
 
     return grad
 
@@ -136,12 +136,12 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
         gradient = logistic_gradient(y, tx,  w)
         loss = logistic_entropy_loss(y ,tx, w)
 
-        w -= gamma * gradient
+        w = w - gamma * gradient
 
     return w, loss
 
 
-def reg_logistic_regression(y, tx, initial_w, lambda_, max_iters, gamma, reg='L2'):
+def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma, reg='L2'):
     w = initial_w
 
     for i in range(0, max_iters):
@@ -149,7 +149,7 @@ def reg_logistic_regression(y, tx, initial_w, lambda_, max_iters, gamma, reg='L2
             gradient = reg_logistic_gradient(y, tx, w, lambda_)
             loss = logistic_entropy_loss(y, tx, w)
 
-            w -= gamma * gradient
+            w = w - gamma * gradient
         elif reg == 'L1':
             gradient = logistic_gradient(y, tx, w)
             loss = reg_logistic_entropy_loss(y, tx, w, lambda_, reg)
