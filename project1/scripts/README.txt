@@ -3,9 +3,11 @@ Project 1, Machine Learning, EPFL
 Date: Oct 25, 2018 
 Team members: Virginia Bordignon, Zilu Tian, Tatiana Volkova 
 
-Please make sure "train.csv" and "test.csv" are in the same folder as run.py 
+Instructions:
+A) Before running run.py, make sure the train.csv and test.csv files are in the same folder.
+B) After running run.py a file ‘prediction.csv’ is created with the prediction vector submitted to the Kaggle competition.
 
-Detailed steps
+Detailed steps:
 1. Data preprocessing
 	"load_clean_csv" is a helper function that build on load_csv. Additional arguments include missing_val and normalized. 
 	missing_val specifies what to do for missing values, which are identified by -999: ignore, replace with the average of the column, or replace with the median. Average returns the best result. 
