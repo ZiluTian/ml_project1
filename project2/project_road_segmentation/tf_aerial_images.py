@@ -144,9 +144,9 @@ def label_to_img(imgwidth, imgheight, w, h, labels):
     for i in range(0,imgheight,h):
         for j in range(0,imgwidth,w):
             if labels[idx][0] > 0.5:
-                l = 1
-            else:
                 l = 0
+            else:
+                l = 1
             array_labels[j:j+w, i:i+h] = l
             idx = idx + 1
     return array_labels
@@ -487,7 +487,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                         summary_writer.add_summary(summary_str, step)
                         summary_writer.flush()
 
-                        # print_predictions(predictions, batch_labels)
+                        print_predictions(predictions, batch_labels)
 
                         print ('Epoch %.2f' % (float(step) * BATCH_SIZE / train_size))
                         print ('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
@@ -505,6 +505,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                 save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
                 print("Model saved in file: %s" % save_path)
 
+          
+          
+#           write_predictions_to_file(predictions, labels, filename)
 
         print ("Running prediction on training set")
         prediction_training_dir = "predictions_training/"
@@ -514,7 +517,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             pimg = get_prediction_with_groundtruth(train_data_filename, i)
             Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
             oimg = get_prediction_with_overlay(train_data_filename, i)
-            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")       
+            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")   
+    
 
 if __name__ == '__main__':
     tf.app.run()
