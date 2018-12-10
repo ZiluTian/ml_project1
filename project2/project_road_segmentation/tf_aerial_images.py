@@ -26,7 +26,7 @@ PIXEL_DEPTH = 255
 NUM_LABELS = 2
 TRAINING_SIZE = 100
 TESTING_SIZE = 50
-VALIDATION_SIZE = 5  # Size of the validation set.
+# VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
 NUM_EPOCHS = 5
@@ -242,7 +242,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_all_data_node = tf.constant(train_data)
 
     # The variables below hold all the trainable weights. They are passed an
-    # initial value which will be assigned when when we call:
+    # initial value which will be assigned when we call:
     # {tf.initialize_all_variables().run()}
     conv1_weights = tf.Variable(
         tf.truncated_normal([5, 5, NUM_CHANNELS, 32],  # 5x5 filter, depth 32.
@@ -254,16 +254,36 @@ def main(argv=None):  # pylint: disable=unused-argument
                             stddev=0.1,
                             seed=SEED))
     conv2_biases = tf.Variable(tf.constant(0.1, shape=[64]))
+    
+    conv3_weights = tf.Variable(
+        tf.truncated_normal([5, 5, 64, 128],
+                            stddev=0.1,
+                            seed=SEED))
+    conv3_biases = tf.Variable(tf.constant(0.1, shape=[128]))
+
     fc1_weights = tf.Variable(  # fully connected, depth 512.
         tf.truncated_normal([int(IMG_PATCH_SIZE / 4 * IMG_PATCH_SIZE / 4 * 64), 512],
                             stddev=0.1,
                             seed=SEED))
     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
+
+    # fc2_weights = tf.Variable(
+    #     tf.truncated_normal([512, NUM_LABELS],
+    #                         stddev=0.1,
+    #                         seed=SEED))
+    # fc2_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
+
     fc2_weights = tf.Variable(
-        tf.truncated_normal([512, NUM_LABELS],
+        tf.truncated_normal([512, 1024],
                             stddev=0.1,
                             seed=SEED))
-    fc2_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
+    fc2_biases = tf.Variable(tf.constant(0.1, shape=[1024]))
+
+    fc3_weights = tf.Variable(
+        tf.truncated_normal([1024, NUM_LABELS],
+                            stddev=0.1,
+                            seed=SEED))
+    fc3_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
 
     # Make an image summary for 4d tensor image with index idx
     def get_image_summary(img, idx = 0):
@@ -351,8 +371,10 @@ def main(argv=None):  # pylint: disable=unused-argument
                             conv1_weights,
                             strides=[1, 1, 1, 1],
                             padding='SAME')
+
         # Bias and rectified linear non-linearity.
         relu = tf.nn.relu(tf.nn.bias_add(conv, conv1_biases))
+
         # Max pooling. The kernel size spec {ksize} also follows the layout of
         # the data. Here we have a pooling window of 2, and a stride of 2.
         pool = tf.nn.max_pool(relu,
@@ -370,29 +392,53 @@ def main(argv=None):  # pylint: disable=unused-argument
                               strides=[1, 2, 2, 1],
                               padding='SAME')
 
+        conv3 = tf.nn.conv2d(pool2,
+                            conv3_weights,
+                            strides=[1, 1, 1, 1],
+                            padding='SAME')
+        relu3 = tf.nn.relu(tf.nn.bias_add(conv3, conv3_biases))
+        pool3 = tf.nn.max_pool(relu3,
+                              ksize=[1, 2, 2, 1],
+                              strides=[1, 2, 2, 1],
+                              padding='SAME')
+
         # Uncomment these lines to check the size of each layer
-        # print 'data ' + str(data.get_shape())
-        # print 'conv ' + str(conv.get_shape())
-        # print 'relu ' + str(relu.get_shape())
-        # print 'pool ' + str(pool.get_shape())
-        # print 'pool2 ' + str(pool2.get_shape())
+        # print ('data ' + str(data.get_shape()))
+        # print ('conv ' + str(conv.get_shape()))
+        # print ('conv1_biases ' + str(conv1_biases.get_shape()))
+        # print ('conv2 ' + str(conv2.get_shape()))
+        # print ('conv2_biases ' + str(conv2_biases.get_shape()))
+        # print ('relu ' + str(relu.get_shape()))
+        # print ('pool ' + str(pool.get_shape()))
+        # print ('pool2 ' + str(pool2.get_shape()))
 
 
-        # Reshape the feature map cuboid into a 2D matrix to feed it to the
-        # fully connected layers.
-        pool_shape = pool2.get_shape().as_list()
+        # Reshape the feature map cuboid into a 2D matrix to feed it to the fully connected layers.
+        pool_shape = pool3.get_shape().as_list()
         reshape = tf.reshape(
-            pool2,
+            pool3,
             [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]])
         # Fully connected layer. Note that the '+' operation automatically
         # broadcasts the biases.
-        hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
+        hidden = tf.nn.relu(tf.matmul(reshape, fc2_weights) + fc2_biases)
         # Add a 50% dropout during training only. Dropout also scales
         # activations such that no rescaling is needed at evaluation time.
         #if train:
         #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
-        out = tf.matmul(hidden, fc2_weights) + fc2_biases
+        out = tf.matmul(hidden, fc3_weights) + fc3_biases
 
+        # pool_shape = pool2.get_shape().as_list()
+        # reshape = tf.reshape(
+        #     pool2,
+        #     [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]])
+        # # Fully connected layer. Note that the '+' operation automatically
+        # # broadcasts the biases.
+        # hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
+        # # Add a 50% dropout during training only. Dropout also scales
+        # # activations such that no rescaling is needed at evaluation time.
+        # #if train:
+        # #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
+        # out = tf.matmul(hidden, fc2_weights) + fc2_biases
         if train == True:
             summary_id = '_0'
             s_data = get_image_summary(data)
@@ -415,8 +461,11 @@ def main(argv=None):  # pylint: disable=unused-argument
         logits=logits, labels=train_labels_node))
     tf.summary.scalar('loss', loss)
 
-    all_params_node = [conv1_weights, conv1_biases, conv2_weights, conv2_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases]
-    all_params_names = ['conv1_weights', 'conv1_biases', 'conv2_weights', 'conv2_biases', 'fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases']
+    all_params_node = [conv1_weights, conv1_biases, conv2_weights, conv2_biases, conv3_weights, conv3_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases, fc3_weights, fc3_biases]
+    all_params_names = ['conv1_weights', 'conv1_biases', 'conv2_weights', 'conv2_biases', 'conv3_weights', 'conv3_biases', 'fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases', 'fc3_weights', 'fc3_biases']
+    # all_params_node = [conv1_weights, conv1_biases, conv2_weights, conv2_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases]
+    # all_params_names = ['conv1_weights', 'conv1_biases', 'conv2_weights', 'conv2_biases', 'fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases']
+ 
     all_grads_node = tf.gradients(loss, all_params_node)
     all_grad_norms_node = []
     for i in range(0, len(all_grads_node)):
@@ -525,15 +574,15 @@ def main(argv=None):  # pylint: disable=unused-argument
                 print("Model saved in file: %s" % save_path)
 
 
-        print ("Running prediction on training set")
-        prediction_training_dir = "predictions_training/"
-        if not os.path.isdir(prediction_training_dir):
-            os.mkdir(prediction_training_dir)
-        for i in range(1, TRAINING_SIZE+1):
-            pimg = get_prediction_with_groundtruth(train_data_filename, i)
-            Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
-            oimg = get_prediction_with_overlay(train_data_filename, i)
-            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
+        # print ("Running prediction on training set")
+        # prediction_training_dir = "predictions_training/"
+        # if not os.path.isdir(prediction_training_dir):
+        #     os.mkdir(prediction_training_dir)
+        # for i in range(1, TRAINING_SIZE+1):
+        #     pimg = get_prediction_with_groundtruth(train_data_filename, i)
+        #     Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
+        #     oimg = get_prediction_with_overlay(train_data_filename, i)
+        #     oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
 
         print ("Running prediction on testing set")
         prediction_testing_dir = "predictions_testing/"
