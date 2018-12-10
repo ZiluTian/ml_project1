@@ -24,7 +24,8 @@ import tensorflow as tf
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 20
+TRAINING_SIZE = 100
+TESTING_SIZE = 50
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
@@ -81,7 +82,7 @@ def extract_data(filename, num_images):
     data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
 
     return numpy.asarray(data)
-        
+
 # Assign a label to a patch v
 def value_to_class(v):
     foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
@@ -144,9 +145,9 @@ def label_to_img(imgwidth, imgheight, w, h, labels):
     for i in range(0,imgheight,h):
         for j in range(0,imgwidth,w):
             if labels[idx][0] > 0.5:
-                l = 1
+                l = 0 # inverse label
             else:
-                l = 0
+                l = 1 # inverse label
             array_labels[j:j+w, i:i+h] = l
             idx = idx + 1
     return array_labels
@@ -164,7 +165,7 @@ def concatenate_images(img, gt_img):
         cimg = numpy.concatenate((img, gt_img), axis=1)
     else:
         gt_img_3c = numpy.zeros((w, h, 3), dtype=numpy.uint8)
-        gt_img8 = img_float_to_uint8(gt_img)          
+        gt_img8 = img_float_to_uint8(gt_img)
         gt_img_3c[:,:,0] = gt_img8
         gt_img_3c[:,:,1] = gt_img8
         gt_img_3c[:,:,2] = gt_img8
@@ -189,9 +190,10 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     data_dir = 'training/'
     train_data_filename = data_dir + 'images/'
-    train_labels_filename = data_dir + 'groundtruth/' 
+    train_labels_filename = data_dir + 'groundtruth/'
+    test_data_filename = ['test_set_images/test_'+str(i)+'/test_'+str(i)+'.png' for i in range(1,TESTING_SIZE+1)]
 
-    # Extract it into numpy arrays.
+    # Extract train data
     train_data = extract_data(train_data_filename, TRAINING_SIZE)
     train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
 
@@ -276,7 +278,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         V = tf.transpose(V, (2, 0, 1))
         V = tf.reshape(V, (-1, img_w, img_h, 1))
         return V
-    
+
     # Make an image summary for 3d tensor image with index idx
     def get_image_summary_3d(img):
         V = tf.slice(img, (0, 0, 0), (1, -1, -1))
@@ -287,7 +289,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         V = tf.reshape(V, (-1, img_w, img_h, 1))
         return V
 
-    # Get prediction for given input image 
+    # Get prediction for given input image
     def get_prediction(img):
         data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE))
         data_node = tf.constant(data)
@@ -310,6 +312,24 @@ def main(argv=None):  # pylint: disable=unused-argument
         return cimg
 
     # Get prediction overlaid on the original image for given input file
+    def get_prediction_with_overlay_test(filename):
+
+        img = mpimg.imread(filename)
+
+        img_prediction = get_prediction(img)
+        oimg = make_img_overlay(img, img_prediction)
+
+        return oimg
+
+    def get_prediction_test(filename):
+
+        img = mpimg.imread(filename)
+
+        cimg = img_float_to_uint8(get_prediction(img))
+
+        return cimg
+
+    # Get prediction overlaid on the original image for given input file
     def get_prediction_with_overlay(filename, image_idx):
 
         imageid = "satImage_%.3d" % image_idx
@@ -320,7 +340,6 @@ def main(argv=None):  # pylint: disable=unused-argument
         oimg = make_img_overlay(img, img_prediction)
 
         return oimg
-
     # We will replicate the model structure for the training subgraph, as well
     # as the evaluation subgraphs, while sharing the trainable parameters.
     def model(data, train=False):
@@ -404,7 +423,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         norm_grad_i = tf.global_norm([all_grads_node[i]])
         all_grad_norms_node.append(norm_grad_i)
         tf.summary.scalar(all_params_names[i], norm_grad_i)
-    
+
     # L2 regularization for the fully connected parameters.
     regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
                     tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
@@ -422,7 +441,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         0.95,                # Decay rate.
         staircase=True)
     tf.summary.scalar('learning_rate', learning_rate)
-    
+
     # Use simple momentum for the optimization.
     optimizer = tf.train.MomentumOptimizer(learning_rate,
                                            0.0).minimize(loss,
@@ -514,7 +533,17 @@ def main(argv=None):  # pylint: disable=unused-argument
             pimg = get_prediction_with_groundtruth(train_data_filename, i)
             Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
             oimg = get_prediction_with_overlay(train_data_filename, i)
-            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")       
+            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
+
+        print ("Running prediction on testing set")
+        prediction_testing_dir = "predictions_testing/"
+        if not os.path.isdir(prediction_testing_dir):
+            os.mkdir(prediction_testing_dir)
+        for i in range(1, TESTING_SIZE+1):
+            pimg = get_prediction_test(test_data_filename[i - 1])
+            Image.fromarray(pimg).save(prediction_testing_dir + "prediction_" + str(i) + ".png")
+            oimg = get_prediction_with_overlay_test(test_data_filename[i - 1])
+            oimg.save(prediction_testing_dir + "overlay_" + str(i) + ".png")
 
 if __name__ == '__main__':
     tf.app.run()
