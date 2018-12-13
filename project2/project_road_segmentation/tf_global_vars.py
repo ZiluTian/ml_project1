@@ -3,11 +3,12 @@ PIXEL_DEPTH = 255
 NUM_LABELS = 2
 TRAINING_SIZE = 100
 TESTING_SIZE = 50
-TRAIN_PER = 1  # Size of the training set.
+TRAIN_PER = .6  # Size of the training set.
 SEED = 66478  # Set to None for random seed.
-BATCH_SIZE = 64 # 64
-NUM_EPOCHS = 30
-RESTORE_MODEL = True # If True, restore existing model instead of training a new one
+NP_SEED = 100
+BATCH_SIZE = 128 # 64
+NUM_EPOCHS = 10
+RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 0
 FILTER_SIZE = 3
 # Set image patch size in pixels

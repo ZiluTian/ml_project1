@@ -20,9 +20,9 @@ import tensorflow.python.platform
 import numpy
 import tensorflow as tf
 
-from tf_img_helpers import * 
-from tf_utils import * 
-from tf_global_vars import * 
+from tf_img_helpers import *
+from tf_utils import *
+from tf_global_vars import *
 
 tf.app.flags.DEFINE_string('train_dir', '/tmp/segment_aerial_images',
                            """Directory where to write event logs """
@@ -40,6 +40,8 @@ def main(argv=None):  # pylint: disable=unused-argument
     # Extract train data
     train_data, train_labels, val_data, val_labels = extract_data_labels(train_data_filename, train_labels_filename, TRAINING_SIZE, TRAIN_PER, BORDER)
     num_epochs = NUM_EPOCHS
+    numpy.random.seed(NP_SEED)
+    tf.set_random_seed(SEED)
 
     c0 = 0
     c1 = 0
@@ -93,20 +95,20 @@ def main(argv=None):  # pylint: disable=unused-argument
                             stddev=0.1,
                             seed=SEED))
 #     print("conv1 weights shape", str(conv1_weights.get_shape()))
-    
+
     conv1_biases = tf.Variable(tf.zeros([32]))
 #     print("conv1 biases shape", str(conv1_biases.get_shape()))
-    
+
     conv2_weights = tf.Variable(
         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 32, 64],
                             stddev=0.1,
                             seed=SEED))
 #     print("conv2 weights shape", str(conv2_weights.get_shape()))
-    
+
     conv2_biases = tf.Variable(tf.constant(0.1, shape=[64]))
 
 #     print("conv2 biases shape", str(conv2_biases.get_shape()))
-    
+
 #     conv3_weights = tf.Variable(
 #         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 64, 128],
 #                             stddev=0.1,
@@ -114,23 +116,23 @@ def main(argv=None):  # pylint: disable=unused-argument
 #     conv3_biases = tf.Variable(tf.constant(0.1, shape=[128]))
 
     fc1_weights = tf.Variable(  # fully connected, depth 512.
-        tf.truncated_normal([int(64*(IMG_PATCH_SIZE + 2*BORDER)**2 / (2**LAYER_NUMBERS)**2), 512],
+        tf.truncated_normal([int(64*(IMG_PATCH_SIZE + 2*BORDER)**2 / (2**LAYER_NUMBERS)**2), 1024],
                             stddev=0.1,
                             seed=SEED))
-    
-    fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
+
+    fc1_biases = tf.Variable(tf.constant(0.1, shape=[1024]))
 
     fc2_weights = tf.Variable(
-        tf.truncated_normal([512, NUM_LABELS],
+        tf.truncated_normal([1024, NUM_LABELS],
                             stddev=0.1,
                             seed=SEED))
     fc2_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
-    
+
 #     print("fc1 weights shape", str(fc1_weights.get_shape()))
 #     print("fc1 biases shape", str(fc1_biases.get_shape()))
 #     print("fc2 weights shape", str(fc2_weights.get_shape()))
 #     print("fc2 biases shape", str(fc2_biases.get_shape()))
-    
+
     # Make an image summary for 4d tensor image with index idx
     def get_image_summary(img, idx = 0):
         V = tf.slice(img, (0, 0, 0, idx), (1, -1, -1, 1))
@@ -267,8 +269,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]])
         # Fully connected layer. Note that the '+' operation automatically
         # broadcasts the biases.
-        print("reshape size", str(reshape.get_shape()))
-        
+
         hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
         # Add a 50% dropout during training only. Dropout also scales
         # activations such that no rescaling is needed at evaluation time.
@@ -288,7 +289,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 #             filter_summary4 = tf.summary.image('summary_conv2' + summary_id, s_conv2)
 #             s_pool2 = get_image_summary(pool2)
 #             filter_summary5 = tf.summary.image('summary_pool2' + summary_id, s_pool2)
-            
+
             # s_conv3 = get_image_summary(conv3)
             # filter_summary6 = tf.summary.image('summary_conv2' + summary_id, s_conv3)
             # s_pool3 = get_image_summary(pool3)
@@ -339,7 +340,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 #                                                          global_step=batch)
     adam_opt = tf.train.AdamOptimizer(learning_rate, beta1=.9, beta2=.999, epsilon=1e-08, use_locking=False, name='Adam')
     optimizer = adam_opt.minimize(loss, global_step=batch)
-    
+
     # Predictions for the minibatch, validation set and test set.
     train_prediction = tf.nn.softmax(logits)
     # We'll compute them only once in a while by calling their {eval()} method.
@@ -435,6 +436,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             Image.fromarray(pimg).save(prediction_testing_dir + "prediction_" + str(i) + ".png")
             oimg = get_prediction_with_overlay_test(test_data_filename[i - 1])
             oimg.save(prediction_testing_dir + "overlay_" + str(i) + ".png")
+            print("Generated image prediction_" + str(i) + ".png")
 
 if __name__ == '__main__':
     tf.app.run()
