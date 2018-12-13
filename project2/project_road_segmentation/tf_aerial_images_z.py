@@ -38,7 +38,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     test_data_filename = ['test_set_images/test_'+str(i)+'/test_'+str(i)+'.png' for i in range(1,TESTING_SIZE+1)]
 
     # Extract train data
-    train_data, train_labels, val_data, val_labels = extract_data_labels(train_data_filename, train_labels_filename, TRAINING_SIZE, TRAIN_PER)
+    train_data, train_labels, val_data, val_labels = extract_data_labels(train_data_filename, train_labels_filename, TRAINING_SIZE, TRAIN_PER, BORDER)
     num_epochs = NUM_EPOCHS
 
     c0 = 0
@@ -77,7 +77,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     # training step using the {feed_dict} argument to the Run() call below.
     train_data_node = tf.placeholder(
         tf.float32,
-        shape=(BATCH_SIZE, IMG_PATCH_SIZE, IMG_PATCH_SIZE, NUM_CHANNELS))
+        shape=(BATCH_SIZE, IMG_TOTAL_SIZE, IMG_TOTAL_SIZE, NUM_CHANNELS))
     train_labels_node = tf.placeholder(tf.float32,
                                        shape=(BATCH_SIZE, NUM_LABELS))
     train_all_data_node = tf.constant(train_data)
@@ -92,23 +92,32 @@ def main(argv=None):  # pylint: disable=unused-argument
         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, NUM_CHANNELS, 32],  # 5x5 filter, depth 32.
                             stddev=0.1,
                             seed=SEED))
+#     print("conv1 weights shape", str(conv1_weights.get_shape()))
+    
     conv1_biases = tf.Variable(tf.zeros([32]))
+#     print("conv1 biases shape", str(conv1_biases.get_shape()))
+    
     conv2_weights = tf.Variable(
         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 32, 64],
                             stddev=0.1,
                             seed=SEED))
+#     print("conv2 weights shape", str(conv2_weights.get_shape()))
+    
     conv2_biases = tf.Variable(tf.constant(0.1, shape=[64]))
 
-    conv3_weights = tf.Variable(
-        tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 64, 128],
-                            stddev=0.1,
-                            seed=SEED))
-    conv3_biases = tf.Variable(tf.constant(0.1, shape=[128]))
+#     print("conv2 biases shape", str(conv2_biases.get_shape()))
+    
+#     conv3_weights = tf.Variable(
+#         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 64, 128],
+#                             stddev=0.1,
+#                             seed=SEED))
+#     conv3_biases = tf.Variable(tf.constant(0.1, shape=[128]))
 
     fc1_weights = tf.Variable(  # fully connected, depth 512.
-        tf.truncated_normal([int(IMG_PATCH_SIZE / (2**3) * IMG_PATCH_SIZE / (2**3) * 128), 512],
+        tf.truncated_normal([int(64*(IMG_PATCH_SIZE + 2*BORDER)**2 / (2**LAYER_NUMBERS)**2), 512],
                             stddev=0.1,
                             seed=SEED))
+    
     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
 
     fc2_weights = tf.Variable(
@@ -116,7 +125,12 @@ def main(argv=None):  # pylint: disable=unused-argument
                             stddev=0.1,
                             seed=SEED))
     fc2_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
-
+    
+#     print("fc1 weights shape", str(fc1_weights.get_shape()))
+#     print("fc1 biases shape", str(fc1_biases.get_shape()))
+#     print("fc2 weights shape", str(fc2_weights.get_shape()))
+#     print("fc2 biases shape", str(fc2_biases.get_shape()))
+    
     # Make an image summary for 4d tensor image with index idx
     def get_image_summary(img, idx = 0):
         V = tf.slice(img, (0, 0, 0, idx), (1, -1, -1, 1))
@@ -143,7 +157,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     # Get prediction for given input image
     def get_prediction(img):
-        data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE))
+        data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE, BORDER))
         data = normalize_img(data)
         data_node = tf.constant(data)
         output = tf.nn.softmax(model(data_node))
@@ -225,34 +239,36 @@ def main(argv=None):  # pylint: disable=unused-argument
                               strides=[1, 2, 2, 1],
                               padding='SAME')
 
-        conv3 = tf.nn.conv2d(pool2,
-                            conv3_weights,
-                            strides=[1, 1, 1, 1],
-                            padding='SAME')
-        relu3 = tf.nn.relu(tf.nn.bias_add(conv3, conv3_biases))
-        pool3 = tf.nn.max_pool(relu3,
-                              ksize=[1, 2, 2, 1],
-                              strides=[1, 2, 2, 1],
-                              padding='SAME')
+#         conv3 = tf.nn.conv2d(pool2,
+#                             conv3_weights,
+#                             strides=[1, 1, 1, 1],
+#                             padding='SAME')
+#         relu3 = tf.nn.relu(tf.nn.bias_add(conv3, conv3_biases))
+#         pool3 = tf.nn.max_pool(relu3,
+#                               ksize=[1, 2, 2, 1],
+#                               strides=[1, 2, 2, 1],
+#                               padding='SAME')
 
         # Uncomment these lines to check the size of each layer
-        # print ('data ' + str(data.get_shape()))
-        # print ('conv ' + str(conv.get_shape()))
-        # print ('conv1_biases ' + str(conv1_biases.get_shape()))
-        # print ('conv2 ' + str(conv2.get_shape()))
-        # print ('conv2_biases ' + str(conv2_biases.get_shape()))
-        # print ('relu ' + str(relu.get_shape()))
-        # print ('pool ' + str(pool.get_shape()))
-        # print ('pool2 ' + str(pool2.get_shape()))
+#         print ('data ' + str(data.get_shape()))
+#         print ('conv ' + str(conv.get_shape()))
+#         print ('conv1_biases ' + str(conv1_biases.get_shape()))
+#         print ('conv2 ' + str(conv2.get_shape()))
+#         print ('conv2_biases ' + str(conv2_biases.get_shape()))
+#         print ('relu ' + str(relu.get_shape()))
+#         print ('pool ' + str(pool.get_shape()))
+#         print ('pool2 ' + str(pool2.get_shape()))
 
 
         # Reshape the feature map cuboid into a 2D matrix to feed it to the fully connected layers.
-        pool_shape = pool3.get_shape().as_list()
+        pool_shape = pool2.get_shape().as_list()
         reshape = tf.reshape(
-            pool3,
+            pool2,
             [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]])
         # Fully connected layer. Note that the '+' operation automatically
         # broadcasts the biases.
+        print("reshape size", str(reshape.get_shape()))
+        
         hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
         # Add a 50% dropout during training only. Dropout also scales
         # activations such that no rescaling is needed at evaluation time.
@@ -260,22 +276,23 @@ def main(argv=None):  # pylint: disable=unused-argument
         #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
         out = tf.matmul(hidden, fc2_weights) + fc2_biases
 
-        if train == True:
-            summary_id = '_0'
-            s_data = get_image_summary(data)
-            filter_summary0 = tf.summary.image('summary_data' + summary_id, s_data)
-            s_conv = get_image_summary(conv)
-            filter_summary2 = tf.summary.image('summary_conv' + summary_id, s_conv)
-            s_pool = get_image_summary(pool)
-            filter_summary3 = tf.summary.image('summary_pool' + summary_id, s_pool)
-            s_conv2 = get_image_summary(conv2)
-            filter_summary4 = tf.summary.image('summary_conv2' + summary_id, s_conv2)
-            s_pool2 = get_image_summary(pool2)
-            filter_summary5 = tf.summary.image('summary_pool2' + summary_id, s_pool2)
-            s_conv3 = get_image_summary(conv3)
-            filter_summary6 = tf.summary.image('summary_conv2' + summary_id, s_conv3)
-            s_pool3 = get_image_summary(pool3)
-            filter_summary7 = tf.summary.image('summary_pool2' + summary_id, s_pool3)
+#         if train == True:
+#             summary_id = '_0'
+#             s_data = get_image_summary(data)
+#             filter_summary0 = tf.summary.image('summary_data' + summary_id, s_data)
+#             s_conv = get_image_summary(conv)
+#             filter_summary2 = tf.summary.image('summary_conv' + summary_id, s_conv)
+#             s_pool = get_image_summary(pool)
+#             filter_summary3 = tf.summary.image('summary_pool' + summary_id, s_pool)
+#             s_conv2 = get_image_summary(conv2)
+#             filter_summary4 = tf.summary.image('summary_conv2' + summary_id, s_conv2)
+#             s_pool2 = get_image_summary(pool2)
+#             filter_summary5 = tf.summary.image('summary_pool2' + summary_id, s_pool2)
+            
+            # s_conv3 = get_image_summary(conv3)
+            # filter_summary6 = tf.summary.image('summary_conv2' + summary_id, s_conv3)
+            # s_pool3 = get_image_summary(pool3)
+            # filter_summary7 = tf.summary.image('summary_pool2' + summary_id, s_pool3)
 
         return out
 
@@ -286,17 +303,17 @@ def main(argv=None):  # pylint: disable=unused-argument
         logits=logits, labels=train_labels_node))
     tf.summary.scalar('loss', loss)
 
-    all_params_node = [conv1_weights, conv1_biases, conv2_weights, conv2_biases, conv3_weights, conv3_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases]
-    all_params_names = ['conv1_weights', 'conv1_biases', 'conv2_weights', 'conv2_biases', 'conv3_weights', 'conv3_biases', 'fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases']
-    # all_params_node = [conv1_weights, conv1_biases, conv2_weights, conv2_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases]
-    # all_params_names = ['conv1_weights', 'conv1_biases', 'conv2_weights', 'conv2_biases', 'fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases']
+    # all_params_node = [conv1_weights, conv1_biases, conv2_weights, conv2_biases, conv3_weights, conv3_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases]
+    # all_params_names = ['conv1_weights', 'conv1_biases', 'conv2_weights', 'conv2_biases', 'conv3_weights', 'conv3_biases', 'fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases']
+    all_params_node = [conv1_weights, conv1_biases, conv2_weights, conv2_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases]
+    all_params_names = ['conv1_weights', 'conv1_biases', 'conv2_weights', 'conv2_biases', 'fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases']
 
-    all_grads_node = tf.gradients(loss, all_params_node)
-    all_grad_norms_node = []
-    for i in range(0, len(all_grads_node)):
-        norm_grad_i = tf.global_norm([all_grads_node[i]])
-        all_grad_norms_node.append(norm_grad_i)
-        tf.summary.scalar(all_params_names[i], norm_grad_i)
+#     all_grads_node = tf.gradients(loss, all_params_node)
+#     all_grad_norms_node = []
+#     for i in range(0, len(all_grads_node)):
+#         norm_grad_i = tf.global_norm([all_grads_node[i]])
+#         all_grad_norms_node.append(norm_grad_i)
+#         tf.summary.scalar(all_params_names[i], norm_grad_i)
 
     # L2 regularization for the fully connected parameters.
     regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
@@ -358,8 +375,9 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                 # Permute training indices
                 perm_indices = numpy.random.permutation(training_indices)
+                steps_per_epoch = int(train_size/BATCH_SIZE)
 
-                for step in range (int(train_size / BATCH_SIZE)):
+                for step in range (steps_per_epoch):
 
                     offset = (step * BATCH_SIZE) % (train_size - BATCH_SIZE)
                     batch_indices = perm_indices[offset:(offset + BATCH_SIZE)]
@@ -378,7 +396,6 @@ def main(argv=None):  # pylint: disable=unused-argument
                         summary_str, _, l, lr, predictions = s.run(
                             [summary_op, optimizer, loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
-                        #summary_str = s.run(summary_op, feed_dict=feed_dict)
                         summary_writer.add_summary(summary_str, step)
                         summary_writer.flush()
 
