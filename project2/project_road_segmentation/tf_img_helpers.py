@@ -1,12 +1,12 @@
-# Helper functions for image preprocessing 
-import numpy 
+# Helper functions for image preprocessing
+import numpy
 import matplotlib.image as mpimg
-import os 
+import os
 from PIL import Image
 
-# import pdb 
+# import pdb
 
-from tf_global_vars import * 
+from tf_global_vars import *
 
 def img_crop(im, w, h, border=0):
     """ Crop an image into 'patches'.
@@ -17,15 +17,15 @@ def img_crop(im, w, h, border=0):
     list_patches = []
     img_width = im.shape[0]
     img_height = im.shape[1]
-    
-    try: 
+
+    try:
         img_channel = im.shape[2]
         if border != 0:
             im = numpy.array([numpy.pad(im[:, :, i], ((border, border), (border, border)), 'symmetric').T for i in range(img_channel)]).T
-    except IndexError: 
+    except IndexError:
         if border != 0:
             im = numpy.array([numpy.pad(im[:, :], ((border, border), (border, border)), 'symmetric').T]).T
-            
+
     for i in range(0, img_height, h):
         for j in range(0, img_width, w):
             im_patch = im[j:j + w + 2 * border, i:i + h + 2 * border]
@@ -67,15 +67,15 @@ def extract_data_labels(filename, gt_filename, n_train, train_per, border):
     IMG_HEIGHT = imgs_train[0].shape[1]
     N_PATCHES_PER_IMAGE = (IMG_WIDTH/IMG_PATCH_SIZE)*(IMG_HEIGHT/IMG_PATCH_SIZE)
     num_imgs = len(imgs_train)
-    
+
     img_patches = [img_crop(imgs_train[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE, border) for i in range(num_imgs)]
-    
+
     data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
-    
+
     img_patches_val = [img_crop(imgs_val[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE, border) for i in range(len(imgs_val))]
     data_val = [img_patches_val[i][j] for i in range(len(img_patches_val)) for j in range(len(img_patches_val[i]))]
 
-    labels_train, labels_val = extract_labels(gt_filename, n_train, train_per, border)
+    labels_train, labels_val = extract_labels(gt_filename, n_train, train_per, 0)
     return (normalize_img(numpy.asarray(data)), labels_train, normalize_img(numpy.asarray(data_val)), labels_val)
 
 
@@ -84,11 +84,11 @@ def value_to_class(v):
     foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
     df = numpy.sum(v)
     if df > foreground_threshold:
-        return [1, 0]
-    else:
         return [0, 1]
-    
-    
+    else:
+        return [1, 0]
+
+
 # Extract label images
 def extract_labels(filename, n_train, train_per, border):
     """Extract the labels into a 1-hot matrix [image index, label index]."""
@@ -128,7 +128,7 @@ def label_to_img(imgwidth, imgheight, w, h, labels):
     idx = 0
     for i in range(0,imgheight,h):
         for j in range(0,imgwidth,w):
-            if labels[idx][0] > 0.5:
+            if labels[idx][1] > 0.5:
                 l = 1
             else:
                 l = 0
@@ -162,4 +162,4 @@ def make_img_overlay(img, predicted_img):
     background = Image.fromarray(img8, 'RGB').convert("RGBA")
     overlay = Image.fromarray(color_mask, 'RGB').convert("RGBA")
     new_img = Image.blend(background, overlay, 0.2)
-    return new_img    
+    return new_img
