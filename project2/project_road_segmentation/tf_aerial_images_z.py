@@ -8,55 +8,19 @@ Credits: Aurelien Lucchi, ETH Zurich
 import gzip
 import sys
 import urllib
-import matplotlib.image as mpimg
-from PIL import Image
-
 import code
 
-import tensorflow.python.platform
-
-import numpy
-import tensorflow as tf
-
+# import tensorflow.python.platform
+from tf_global_vars import *
 from tf_img_helpers import *
 from tf_utils import *
-from tf_global_vars import *
+
 
 tf.app.flags.DEFINE_string('train_dir', '/tmp/segment_aerial_images',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 FLAGS = tf.app.flags.FLAGS
 
-
-def conv_layers_param(conv_arch, conv_depth, channels, seed=None): 
-    conv_params = [None] * len(conv_arch)
-
-    input_channel = channels
-
-    for i, n_conv in enumerate(conv_arch): 
-        conv_params[i] = [None] * n_conv 
-        output_channel = conv_depth[i]
-        for layer in range(n_conv): 
-            conv_weights = tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, input_channel, output_channel], stddev=0.1, seed=seed)
-            conv_biases = tf.zeros([output_channel])
-            conv_params[i][layer] = (conv_weights, conv_biases)
-            input_channel = output_channel 
-
-    return conv_params, output_channel 
-
-# Convolution layers bounded with relus 
-def conv_layers_init(conv_arch, conv_params, prev_layer): 
-    for i, n_conv in enumerate(conv_arch): 
-        for layer in range(n_conv): 
-            conv_weights = conv_params[i][layer][0]
-            conv_biases = conv_params[i][layer][1]
-            conv = tf.nn.conv2d(prev_layer, conv_weights, strides=[1, 1, 1, 1], padding='SAME')
-            relu = tf.nn.relu(tf.nn.bias_add(conv, conv_biases))
-            prev_layer = relu 
-
-        prev_layer = tf.nn.max_pool(prev_layer, ksize=[1, 2, 2, 1], strides = [1, 2, 2, 1], padding='SAME')
-
-    return prev_layer 
 
 def main(argv=None):  # pylint: disable=unused-argument
 
@@ -111,7 +75,6 @@ def main(argv=None):  # pylint: disable=unused-argument
     train_labels_node = tf.placeholder(tf.float32,
                                        shape=(BATCH_SIZE, NUM_LABELS))
     train_all_data_node = tf.constant(train_data)
-
     eval_data_node = tf.constant(val_data)
     eval_labels_node = tf.constant(val_labels)
 
@@ -120,6 +83,12 @@ def main(argv=None):  # pylint: disable=unused-argument
     # {tf.initialize_all_variables().run()}
 
     layer_numbers = len(CONV_ARCH)
+    
+#     conv_weights = tf.placeholder(tf.float32, shape=(FILTER_SIZE, FILTER_SIZE, NUM_CHANNELS, OUTPUT_CHANNELS[0]))
+    
+#     conv_biases = tf.placeholder(tf.float32, shape=(OUTPUT_CHANNELS[0]))
+    
+        
     fc1_weights = tf.Variable(  # fully connected, depth 512.
         tf.truncated_normal([int(64*(IMG_PATCH_SIZE + 2*BORDER)**2 / (2**layer_numbers)**2), 512],
                             stddev=0.1,
@@ -137,31 +106,6 @@ def main(argv=None):  # pylint: disable=unused-argument
 #     print("fc1 biases shape", str(fc1_biases.get_shape()))
 #     print("fc2 weights shape", str(fc2_weights.get_shape()))
 #     print("fc2 biases shape", str(fc2_biases.get_shape()))
-
-    # Make an image summary for 4d tensor image with index idx
-    def get_image_summary(img, idx = 0):
-        V = tf.slice(img, (0, 0, 0, idx), (1, -1, -1, 1))
-        img_w = img.get_shape().as_list()[1]
-        img_h = img.get_shape().as_list()[2]
-        min_value = tf.reduce_min(V)
-        V = V - min_value
-        max_value = tf.reduce_max(V)
-        V = V / (max_value*PIXEL_DEPTH)
-        V = tf.reshape(V, (img_w, img_h, 1))
-        V = tf.transpose(V, (2, 0, 1))
-        V = tf.reshape(V, (-1, img_w, img_h, 1))
-        return V
-
-    # Make an image summary for 3d tensor image with index idx
-    def get_image_summary_3d(img):
-        V = tf.slice(img, (0, 0, 0), (1, -1, -1))
-        img_w = img.get_shape().as_list()[1]
-        img_h = img.get_shape().as_list()[2]
-        V = tf.reshape(V, (img_w, img_h, 1))
-        V = tf.transpose(V, (2, 0, 1))
-        V = tf.reshape(V, (-1, img_w, img_h, 1))
-        return V
-
     # Get prediction for given input image
     def get_prediction(img):
         data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE, BORDER))
@@ -214,7 +158,6 @@ def main(argv=None):  # pylint: disable=unused-argument
         oimg = make_img_overlay(img, img_prediction)
 
         return oimg
-    
     
     # We will replicate the model structure for the training subgraph, as well
     # as the evaluation subgraphs, while sharing the trainable parameters.
@@ -295,9 +238,10 @@ def main(argv=None):  # pylint: disable=unused-argument
     saver = tf.train.Saver()
 
     # Create a local session to run this computation.
+    init = tf.global_variables_initializer()
+    
     with tf.Session() as s:
-
-
+            
         if RESTORE_MODEL:
             # Restore variables from disk.
             saver.restore(s, FLAGS.train_dir + "/model.ckpt")
@@ -305,12 +249,12 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         else:
             # Run all the initializers to prepare the trainable parameters.
-            tf.global_variables_initializer().run()
+            s.run(init)
 
             # Build the summary operation based on the TF collection of Summaries.
-            summary_op = tf.summary.merge_all()
-            summary_writer = tf.summary.FileWriter(FLAGS.train_dir,
-                                                    graph_def=s.graph_def)
+#             summary_op = tf.summary.merge_all()
+#             summary_writer = tf.summary.FileWriter(FLAGS.train_dir,
+#                                                     graph_def=s.graph_def)
             print ('Initialized!')
             # Loop through training steps.
             print ('Total number of iterations = ' + str(int(num_epochs * train_size / BATCH_SIZE)))
@@ -338,13 +282,17 @@ def main(argv=None):  # pylint: disable=unused-argument
                                  train_labels_node: batch_labels}
 
                     if step == 0:
+                        
+#                         summary_str, _, l, lr, predictions = s.run(
+#                             [summary_op, optimizer, loss, learning_rate, train_prediction],
+#                             feed_dict=feed_dict)
+#                         summary_writer.add_summary(summary_str, step)
+#                         summary_writer.flush()
 
-                        summary_str, _, l, lr, predictions = s.run(
-                            [summary_op, optimizer, loss, learning_rate, train_prediction],
+                        _, l, lr, predictions = s.run(
+                            [optimizer, loss, learning_rate, train_prediction],
                             feed_dict=feed_dict)
-                        summary_writer.add_summary(summary_str, step)
-                        summary_writer.flush()
-
+    
                         # print_predictions(predictions, batch_labels)
 
                         print ('Epoch %.2f' % (float(step) * BATCH_SIZE / train_size))
