@@ -82,18 +82,34 @@ def main(argv=None):  # pylint: disable=unused-argument
     # initial value which will be assigned when we call:
     # {tf.initialize_all_variables().run()}
 
-    layer_numbers = len(CONV_ARCH)
-    
-#     conv_weights = tf.placeholder(tf.float32, shape=(FILTER_SIZE, FILTER_SIZE, NUM_CHANNELS, OUTPUT_CHANNELS[0]))
-    
-#     conv_biases = tf.placeholder(tf.float32, shape=(OUTPUT_CHANNELS[0]))
-    
-        
-    fc1_weights = tf.Variable(  # fully connected, depth 512.
-        tf.truncated_normal([int(64*(IMG_PATCH_SIZE + 2*BORDER)**2 / (2**layer_numbers)**2), 512],
+    conv1_weights = tf.Variable(
+        tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, NUM_CHANNELS, 32],  # 5x5 filter, depth 32.
                             stddev=0.1,
                             seed=SEED))
+    conv1_biases = tf.Variable(tf.zeros([32]))
+    
+    conv2_weights = tf.Variable(
+        tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 32, 64],
+                            stddev=0.1,
+                            seed=SEED))
+    conv2_biases = tf.Variable(tf.constant(0.1, shape=[64]))
 
+    conv3_weights = tf.Variable(
+        tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 64, 128],
+                            stddev=0.1,
+                            seed=SEED))
+    conv3_biases = tf.Variable(tf.constant(0.1, shape=[128]))
+    
+    conv4_weights = tf.Variable(
+    tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 128, 256],
+                        stddev=0.1,
+                        seed=SEED))
+    conv4_biases = tf.Variable(tf.constant(0.1, shape=[256]))
+        
+    fc1_weights = tf.Variable(  # fully connected, depth 512.
+        tf.truncated_normal([int(256*(IMG_PATCH_SIZE + 2*BORDER)**2 / (2**LAYER_NUMBER)**2), 512],
+                            stddev=0.1,
+                            seed=SEED))
     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
 
     fc2_weights = tf.Variable(
@@ -106,6 +122,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 #     print("fc1 biases shape", str(fc1_biases.get_shape()))
 #     print("fc2 weights shape", str(fc2_weights.get_shape()))
 #     print("fc2 biases shape", str(fc2_biases.get_shape()))
+
     # Get prediction for given input image
     def get_prediction(img):
         data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE, BORDER))
@@ -164,15 +181,32 @@ def main(argv=None):  # pylint: disable=unused-argument
     def model(data, train=False):
         """The Model definition."""
         
-        conv_params, output_layer = conv_layers_param(CONV_ARCH, OUTPUT_CHANNELS, NUM_CHANNELS, seed=SEED)
-
-        conv_end = conv_layers_init(CONV_ARCH, conv_params, data)
-
+#         conv_params, output_layer = conv_layers_param(CONV_ARCH, OUTPUT_CHANNELS, NUM_CHANNELS, seed=SEED)
+#         conv_end = conv_layers_init(CONV_ARCH, conv_params, data)
+        #zt [2,2,1] architecture 
+        conv1 = tf.nn.conv2d(data, conv1_weights, strides=[1, 1, 1, 1], padding='SAME')  
+        relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
+        conv2 = tf.nn.conv2d(relu1, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
+        relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
+        pool = tf.nn.max_pool(relu2,
+                              ksize=[1, 2, 2, 1],
+                              strides=[1, 2, 2, 1],
+                              padding='SAME')
+        
+        conv3 = tf.nn.conv2d(pool, conv3_weights, strides=[1, 1, 1, 1], padding='SAME')
+        relu3 = tf.nn.relu(tf.nn.bias_add(conv3, conv3_biases))
+        conv4 = tf.nn.conv2d(relu3, conv4_weights, strides=[1, 1, 1, 1], padding='SAME')
+        relu4 = tf.nn.relu(tf.nn.bias_add(conv4, conv4_biases))
+        pool2 = tf.nn.max_pool(relu4,
+                              ksize=[1, 2, 2, 1],
+                              strides=[1, 2, 2, 1],
+                              padding='SAME')
+        
         # Reshape the feature map cuboid into a 2D matrix to feed it to the fully connected layers.
-        conv_end_shape = conv_end.get_shape().as_list()
+        conv_end_shape = pool2.get_shape().as_list()
 
         reshape = tf.reshape(
-            conv_end,
+            pool2,
             [-1, conv_end_shape[1] * conv_end_shape[2] * conv_end_shape[3]])
         
         # Fully connected layer. Note that the '+' operation automatically
@@ -193,16 +227,6 @@ def main(argv=None):  # pylint: disable=unused-argument
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
         logits=logits, labels=train_labels_node))
     tf.summary.scalar('loss', loss)
-
-#     all_params_node = [fc1_weights, fc1_biases, fc2_weights, fc2_biases]
-#     all_params_names = ['fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases']
-
-#     all_grads_node = tf.gradients(loss, all_params_node)
-#     all_grad_norms_node = []
-#     for i in range(0, len(all_grads_node)):
-#         norm_grad_i = tf.global_norm([all_grads_node[i]])
-#         all_grad_norms_node.append(norm_grad_i)
-#         tf.summary.scalar(all_params_names[i], norm_grad_i)
 
     # L2 regularization for the fully connected parameters.
     regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +

@@ -43,18 +43,18 @@ def conv_layers_param(conv_arch, conv_depth, channels, seed=None):
     return conv_params, output_channel 
 
 # Convolution layers bounded with relus 
-def conv_layers_init(conv_arch, conv_params, prev_layer): 
-    for i, n_conv in enumerate(conv_arch): 
-        for layer in range(n_conv): 
-#             conv_weights = tf.assign(conv_biases, conv_params[i][layer][0])
-#             conv_biases = conv_params[i][layer][1]
-            conv = tf.nn.conv2d(prev_layer, conv_params[i][layer][0], strides=[1, 1, 1, 1], padding='SAME')
-            relu = tf.nn.relu(tf.nn.bias_add(conv, conv_params[i][layer][1]))
-            prev_layer = relu 
+# def conv_layers_init(conv_arch, conv_params, prev_layer): 
+#     for i, n_conv in enumerate(conv_arch): 
+#         for layer in range(n_conv): 
+# #             conv_weights = tf.assign(conv_biases, conv_params[i][layer][0])
+# #             conv_biases = conv_params[i][layer][1]
+#             conv = tf.nn.conv2d(prev_layer, conv_params[i][layer][0], strides=[1, 1, 1, 1], padding='SAME')
+#             relu = tf.nn.relu(tf.nn.bias_add(conv, conv_params[i][layer][1]))
+#             prev_layer = relu 
 
-        prev_layer = tf.nn.max_pool(prev_layer, ksize=[1, 2, 2, 1], strides = [1, 2, 2, 1], padding='SAME')
+#         prev_layer = tf.nn.max_pool(prev_layer, ksize=[1, 2, 2, 1], strides = [1, 2, 2, 1], padding='SAME')
 
-    return prev_layer 
+#     return prev_layer 
 
 
     
