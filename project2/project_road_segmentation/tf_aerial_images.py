@@ -275,10 +275,16 @@ def main(argv=None):  # pylint: disable=unused-argument
     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
 
     fc2_weights = tf.Variable(
+        tf.truncated_normal([512, 512],
+                            stddev=0.1,
+                            seed=SEED))
+    fc2_biases = tf.Variable(tf.constant(0.1, shape=[512]))
+
+    fc3_weights = tf.Variable(
         tf.truncated_normal([512, NUM_LABELS],
                             stddev=0.1,
                             seed=SEED))
-    fc2_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
+    fc3_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
 
 
     # Make an image summary for 4d tensor image with index idx
@@ -417,6 +423,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         # Fully connected layer. Note that the '+' operation automatically
         # broadcasts the biases.
         hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
+        hidden1 = tf.nn.relu(tf.matmul(hidden, fc2_weights) + fc2_biases)
         # Add a 50% dropout during training only. Dropout also scales
         # activations such that no rescaling is needed at evaluation time.
         #if train:
@@ -476,7 +483,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     # L2 regularization for the fully connected parameters.
     regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
-                    tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
+                    tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases) +
+                    tf.nn.l2_loss(fc3_weights) + tf.nn.l2_loss(fc3_biases))
     # Add the regularization term to the loss.
     loss += 5e-4 * regularizers
 
@@ -575,15 +583,15 @@ def main(argv=None):  # pylint: disable=unused-argument
                 print("Model saved in file: %s" % save_path)
 
 
-        print ("Running prediction on training set")
-        prediction_training_dir = "predictions_training/"
-        if not os.path.isdir(prediction_training_dir):
-            os.mkdir(prediction_training_dir)
-        for i in range(1, TRAINING_SIZE+1):
-            pimg = get_prediction_with_groundtruth(train_data_filename, i)
-            Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
-            oimg = get_prediction_with_overlay(train_data_filename, i)
-            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
+        # print ("Running prediction on training set")
+        # prediction_training_dir = "predictions_training/"
+        # if not os.path.isdir(prediction_training_dir):
+        #     os.mkdir(prediction_training_dir)
+        # for i in range(1, TRAINING_SIZE+1):
+        #     pimg = get_prediction_with_groundtruth(train_data_filename, i)
+        #     Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
+        #     oimg = get_prediction_with_overlay(train_data_filename, i)
+        #     oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
 
         # print ("Running prediction on testing set")
         # prediction_testing_dir = "predictions_testing/"
