@@ -57,25 +57,26 @@ def extract_data_labels(filename, gt_filename, n_train, train_per, border):
         else:
             print ('File ' + image_filename + ' does not exist')
 
-    imgs_train = imgs[:int(n_train*train_per)]
-    if train_per<1:
-        imgs_val = imgs[int(n_train*train_per):]
+    perm_index = numpy.random.permutation(range(n_train))
+
+    imgs_train = [imgs[i] for i in perm_index[:int(n_train*train_per)]]
+    if train_per < 1:
+        imgs_val = [imgs[i] for i in perm_index[int(n_train*train_per):]]
     else:
         imgs_val = imgs_train
-    IMG_WIDTH = imgs_train[0].shape[0]
-    IMG_HEIGHT = imgs_train[0].shape[1]
-    N_PATCHES_PER_IMAGE = (IMG_WIDTH/IMG_PATCH_SIZE)*(IMG_HEIGHT/IMG_PATCH_SIZE)
+
     num_imgs = len(imgs_train)
-    
+
     img_patches = [img_crop(imgs_train[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE, border) for i in range(num_imgs)]
-    
+
     data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
-    
+
     img_patches_val = [img_crop(imgs_val[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE, border) for i in range(len(imgs_val))]
     data_val = [img_patches_val[i][j] for i in range(len(img_patches_val)) for j in range(len(img_patches_val[i]))]
 
-    labels_train, labels_val = extract_labels(gt_filename, n_train, train_per, border)
+    labels_train, labels_val = extract_labels(gt_filename, n_train, train_per, 0, perm_index)
     return (normalize_img(numpy.asarray(data)), labels_train, normalize_img(numpy.asarray(data_val)), labels_val)
+
 
 
 # Assign a label to a patch v
@@ -89,7 +90,7 @@ def value_to_class(v):
     
     
 # Extract label images
-def extract_labels(filename, n_train, train_per, border):
+def extract_labels(filename, n_train, train_per, border, perm_index):
     """Extract the labels into a 1-hot matrix [image index, label index]."""
 
     gt_imgs = []
@@ -103,9 +104,9 @@ def extract_labels(filename, n_train, train_per, border):
         else:
             print ('File ' + image_filename + ' does not exist')
 
-    gt_imgs_train = gt_imgs[:int(n_train*train_per)]
-    if train_per<1:
-        gt_imgs_val= gt_imgs[int(n_train*train_per):]
+    gt_imgs_train = [gt_imgs[i] for i in perm_index[:int(n_train*train_per)]]
+    if train_per < 1:
+        gt_imgs_val = [gt_imgs[i] for i in perm_index[int(n_train*train_per):]]
     else:
         gt_imgs_val = gt_imgs_train
 
@@ -119,7 +120,6 @@ def extract_labels(filename, n_train, train_per, border):
 
     # Convert to dense 1-hot representation.
     return (labels_train.astype(numpy.float32), labels_val.astype(numpy.float32))
-
 
 # Convert array of labels to an image
 def label_to_img(imgwidth, imgheight, w, h, labels):

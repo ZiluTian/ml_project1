@@ -107,7 +107,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     conv4_biases = tf.Variable(tf.constant(0.1, shape=[256]))
         
     fc1_weights = tf.Variable(  # fully connected, depth 512.
-        tf.truncated_normal([int(256*(IMG_PATCH_SIZE + 2*BORDER)**2 / (2**LAYER_NUMBER)**2), 512],
+        tf.truncated_normal([int(256*IMG_TOTAL_SIZE**2 / (2**LAYER_NUMBER)**2), 512],
                             stddev=0.1,
                             seed=SEED))
     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
@@ -238,12 +238,13 @@ def main(argv=None):  # pylint: disable=unused-argument
     # controls the learning rate decay.
     batch = tf.Variable(0)
     # Decay once per epoch, using an exponential schedule starting at 0.01.
-    learning_rate = tf.train.exponential_decay(
-        0.01,                # Base learning rate.
-        batch * BATCH_SIZE,  # Current index into the dataset.
-        train_size,          # Decay step.
-        0.95,                # Decay rate.
-        staircase=True)
+#     learning_rate = tf.train.exponential_decay(
+#         0.01,                # Base learning rate.
+#         batch * BATCH_SIZE,  # Current index into the dataset.
+#         train_size,          # Decay step.
+#         0.95,                # Decay rate.
+#         staircase=True)
+    learning_rate = tf.constant(0.001) 
     tf.summary.scalar('learning_rate', learning_rate)
 
     # Use simple momentum for the optimization.
