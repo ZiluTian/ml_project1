@@ -72,28 +72,14 @@ def create_layer(data, input_channels, depth):
                           padding='SAME')
     
     return pool 
-
-# def create_layer2(data): 
-#     conv2_weights = tf.Variable(
-#         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 32, 64],
-#                             stddev=0.1,
-#                             seed=SEED))
-#     conv2_biases = tf.Variable(tf.constant(0.1, shape=[64]))
-
-#     conv22_weights = tf.Variable(
-#         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 64, 64],
-#                             stddev=0.1,
-#                             seed=SEED))
-#     conv22_biases = tf.Variable(tf.constant(0.1, shape=[64]))
     
-#     conv2 = tf.nn.conv2d(data, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
-#     relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
-#     conv22 = tf.nn.conv2d(relu2, conv22_weights, strides=[1, 1, 1, 1], padding='SAME')
-#     relu22 = tf.nn.relu(tf.nn.bias_add(conv22, conv22_biases))
-
-#     pool2 = tf.nn.max_pool(relu22,
-#                           ksize=[1, 2, 2, 1],
-#                           strides=[1, 2, 2, 1],
-#                           padding='SAME')
-        
-#     return pool2 
+    
+def write_log(params): 
+        log_file_name = "log_file.txt"
+        log_file = open(log_file_name, 'a')
+        log_file.write('\n\n')
+        for i, j in params.items():
+            log_file.write(i + ":" + str(j) + "\n")
+        log_file.close()
+            
+                

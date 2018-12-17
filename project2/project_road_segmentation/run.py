@@ -27,8 +27,6 @@ def main(argv=None):  # pylint: disable=unused-argument
     numpy.random.seed(NP_SEED)
     tf.set_random_seed(SEED)
     
-    test_data_filename = ['test_set_images/test_'+str(i)+'/test_'+str(i)+'.png' for i in range(1,TESTING_SIZE+1)]
-    
     train_data_origin, train_labels_origin, val_data, val_labels = extract_train_data(TRAINING_SIZE, TRAIN_PER, BORDER)
     
     train_data, train_labels = balance_data(train_data_origin, train_labels_origin)
@@ -67,93 +65,66 @@ def main(argv=None):  # pylint: disable=unused-argument
         output = tf.nn.softmax(model(data_node))
         output_prediction = s.run(output)
         img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
-
         return img_prediction
 
     def get_prediction_with_groundtruth(filename, image_idx):
-
         imageid = "satImage_%.3d" % image_idx
         image_filename = filename + imageid + ".png"
         img = mpimg.imread(image_filename)
-
         img_prediction = get_prediction(img)
         cimg = concatenate_images(img, img_prediction)
-
         return cimg
 
     def get_prediction_with_overlay_test(filename):
-
         img = mpimg.imread(filename)
-
         img_prediction = get_prediction(img)
         oimg = make_img_overlay(img, img_prediction)
-
         return oimg
 
     def get_prediction_test(filename):
-
         img = mpimg.imread(filename)
-
         cimg = img_float_to_uint8(get_prediction(img))
-
         return cimg
 
     def get_prediction_with_overlay(filename, image_idx):
-
         imageid = "satImage_%.3d" % image_idx
         image_filename = filename + imageid + ".png"
         img = mpimg.imread(image_filename)
-
         img_prediction = get_prediction(img)
         oimg = make_img_overlay(img, img_prediction)
-
         return oimg
-    # We will replicate the model structure for the training subgraph, as well
-    # as the evaluation subgraphs, while sharing the trainable parameters.
-    def model(data, train=False):
+
+    def model(data):
         """The Model definition."""
-        
         layer1 = create_layer(data, NUM_CHANNELS, 32) # depth 32 
-        layer2 = create_layer(layer1, 32, 64) 
-
+        layer2 = create_layer(layer1, 32, 64)
         conv_end_shape = layer2.get_shape().as_list()
-
         reshape = tf.reshape(
             layer2,
             [conv_end_shape[0], conv_end_shape[1] * conv_end_shape[2] * conv_end_shape[3]])
-
         hidden = tf.nn.relu(tf.matmul(reshape, fc1['weights']) + fc1['biases'])
-        #if train:
-        #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
         out = tf.matmul(hidden, fc2['weights']) + fc2['biases']
-
         return out
 
-
-    logits = model(train_data_node, True)
-
+    # Get the loss of the model over the train data 
+    logits = model(train_data_node)
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
         logits=logits, labels=train_labels_node))
     tf.summary.scalar('loss', loss)
 
     regularizers = (tf.nn.l2_loss(fc1['weights']) + tf.nn.l2_loss(fc1['biases']) + tf.nn.l2_loss(fc2['weights']) + tf.nn.l2_loss(fc2['biases']))
     loss += 5e-4 * regularizers
-
     batch = tf.Variable(0)
-
     learning_rate = tf.constant(0.001)
-
     adam_opt = tf.train.AdamOptimizer(learning_rate, beta1=.9, beta2=.999, epsilon=1e-08, use_locking=False, name='Adam')
     optimizer = adam_opt.minimize(loss, global_step=batch)
 
+    # Get the loss of the model over the evaluation data 
     train_prediction = tf.nn.softmax(logits)
     predictions = tf.nn.softmax(model(eval_data_node))
     accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(predictions, 1), tf.argmax(eval_labels_node, 1)), tf.float32))
-
     train_all_prediction = tf.nn.softmax(model(train_all_data_node))
-
     saver = tf.train.Saver()
-
     init = tf.global_variables_initializer()
 
     with tf.Session() as s:
@@ -229,12 +200,14 @@ def main(argv=None):  # pylint: disable=unused-argument
             recall = TP / (FN + TP)
             f1 = 2 * (precision * recall) / (precision + recall)
             print('F1 score for validation set: %.3f' % f1)
-            params ['f1'] = f1
+            params['f1'] = f1
 
         if PREDICT_IMAGES:
             print("\n############################################################################")
             print ("Running prediction on testing set")
             prediction_testing_dir = "predictions_testing/"
+            test_data_filename = ['test_set_images/test_'+str(i)+'/test_'+str(i)+'.png' for i in range(1,TESTING_SIZE+1)]
+
             if not os.path.isdir(prediction_testing_dir):
                 os.mkdir(prediction_testing_dir)
             for i in range(1, TESTING_SIZE+1):
@@ -243,14 +216,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                 oimg = get_prediction_with_overlay_test(test_data_filename[i - 1])
                 oimg.save(prediction_testing_dir + "overlay_" + str(i) + ".png")
                 print("Generated image prediction_" + str(i) + ".png")
-
+            
         if LOG_PARAM:
-            log_file_name = "log_file.txt"
-            log_file = open(log_file_name, 'a')
-            log_file.write('\n\n')
-            for i, j in params.items():
-                log_file.write(i + ":" + str(j) + "\n")
-            log_file.close()
+            write_log(params) 
 
 if __name__ == '__main__':
     tf.app.run()
