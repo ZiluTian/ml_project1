@@ -52,30 +52,31 @@ def balance_data(train_data, train_labels):
     print ('Number of data points per class: Background = ' + str(c0) + ' Road = ' + str(c1))
     return (train_data, train_labels)
 
-def create_layer(data, input_channels, depth): 
-    conv1_weights = tf.Variable(
-            tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, input_channels, depth],  # 5x5 filter, depth 32.
-                                stddev=0.1,
-                                seed=SEED))
-    conv1_biases = tf.Variable(tf.zeros([depth]))
 
-    conv2_weights = tf.Variable(
-        tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, depth, depth],  
-                            stddev=0.1,
-                            seed=SEED))
-    conv2_biases = tf.Variable(tf.zeros([depth]))
+# def create_layer(data, input_channels, depth): 
+#     conv1_weights = tf.Variable(
+#             tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, input_channels, depth],  # 5x5 filter, depth 32.
+#                                 stddev=0.1,
+#                                 seed=SEED))
+#     conv1_biases = tf.Variable(tf.zeros([depth]))
 
-    conv1 = tf.nn.conv2d(data, conv1_weights, strides=[1, 1, 1, 1], padding='SAME')
-    relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
-    conv2 = tf.nn.conv2d(relu1, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
-    relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
+#     conv2_weights = tf.Variable(
+#         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, depth, depth],  
+#                             stddev=0.1,
+#                             seed=SEED))
+#     conv2_biases = tf.Variable(tf.zeros([depth]))
 
-    pool = tf.nn.max_pool(relu2,
-                          ksize=[1, 2, 2, 1],
-                          strides=[1, 2, 2, 1],
-                          padding='SAME')
+#     conv1 = tf.nn.conv2d(data, conv1_weights, strides=[1, 1, 1, 1], padding='SAME')
+#     relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
+#     conv2 = tf.nn.conv2d(relu1, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
+#     relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
+
+#     pool = tf.nn.max_pool(relu2,
+#                           ksize=[1, 2, 2, 1],
+#                           strides=[1, 2, 2, 1],
+#                           padding='SAME')
     
-    return pool 
+#     return pool 
    
     
 def write_log(params): 
