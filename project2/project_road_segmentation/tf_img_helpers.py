@@ -61,10 +61,17 @@ def img_float_to_uint8(img):
     rimg = (rimg / numpy.max(rimg) * PIXEL_DEPTH).round().astype(numpy.uint8)
     return rimg
 
-def extract_data_labels(filename, gt_filename, n_train, train_per, border):
-    """Extract the images into a 4D tensor [image index, y, x, channels].
+def extract_train_data(n_train, train_per, border):
+    """Extract training images into a 4D tensor [image index, y, x, channels].
     Values are rescaled from [0, 255] down to [-0.5, 0.5].
     """
+    data_dir = 'training/'
+    filename = data_dir + 'images/'
+    gt_filename = data_dir + 'groundtruth/'
+
+    print("\n############################################################################")
+    print("Extracting training and test data")
+        
     imgs = []
     for i in range(1, n_train + 1):
         imageid = "satImage_%.3d" % i
@@ -94,6 +101,7 @@ def extract_data_labels(filename, gt_filename, n_train, train_per, border):
     data_val = [img_patches_val[i][j] for i in range(len(img_patches_val)) for j in range(len(img_patches_val[i]))]
 
     labels_train, labels_val = extract_labels(gt_filename, n_train, train_per, 0, perm_index)
+    
     return (normalize_img(numpy.asarray(data)), labels_train, normalize_img(numpy.asarray(data_val)), labels_val)
 
 

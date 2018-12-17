@@ -15,54 +15,90 @@ def f1_score(predictions, labels):
 
     return (TP, FP, FN)
 
-def conv_layers_param(conv_arch, conv_depth, channels, seed=None):
-    conv_params = [None] * len(conv_arch)
+def balance_data(train_data, train_labels): 
+    c0 = 0
+    c1 = 0
+    for i in range(len(train_labels)):
+        if train_labels[i][0] == 1:
+            c0 = c0 + 1
+        else:
+            c1 = c1 + 1
 
-    input_channel = channels
+    print ('Number of data points per class: Background = ' + str(c0) + ' Road = ' + str(c1))
+    
+    print ('Balancing training data...')
+    min_c = min(c0, c1) 
+    idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
+    idx1 = [i for i, j in enumerate(train_labels) if j[1] == 1]
+    new_indices = idx0[0:min_c] + idx1[0:min_c]
+    print (len(new_indices))
+    print (train_data.shape)
+    train_data = train_data[new_indices,:,:,:]
+    train_labels = train_labels[new_indices]
 
-    for i, n_conv in enumerate(conv_arch):
-        conv_params[i] = [None] * n_conv
-        output_channel = conv_depth[i]
-        for layer in range(n_conv):
-#             conv_weights = tf.assign(conv_weights, tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, input_channel, output_channel], stddev=0.1, seed=seed), validate_shape=False)
-#             conv_biases = tf.assign(conv_biases, tf.zeros([output_channel]), validate_shape=False)
-            conv_weights = tf.Variable(tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, input_channel, output_channel], stddev=0.1, seed=seed))
-            conv_biases = tf.Variable(tf.zeros([output_channel]))
-            conv_params[i][layer] = (conv_weights, conv_biases)
-#             conv_params[i][layer] = (tf.assign(conv_weights, tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, input_channel, output_channel], stddev=0.1, seed=seed), validate_shape=False), tf.assign(conv_biases, tf.zeros([output_channel]), validate_shape=False))
+    train_size = train_labels.shape[0]
 
-            input_channel = output_channel
+    c0 = 0
+    c1 = 0
+    for i in range(len(train_labels)):
+        if train_labels[i][0] == 1:
+            c0 = c0 + 1
+        else:
+            c1 = c1 + 1
+    print ('Number of data points per class: Background = ' + str(c0) + ' Road = ' + str(c1))
+    return (train_data, train_labels)
 
-    return conv_params, output_channel
+def tf_nodes_declare(): 
+    train_data_node = tf.placeholder(
+        tf.float32,
+        shape=(BATCH_SIZE, IMG_TOTAL_SIZE, IMG_TOTAL_SIZE, NUM_CHANNELS))
+    train_labels_node = tf.placeholder(tf.float32,
+                                       shape=(BATCH_SIZE, NUM_LABELS))
+    eval_data_node = tf.placeholder(
+        tf.float32,
+        shape=(BATCH_SIZE, IMG_TOTAL_SIZE, IMG_TOTAL_SIZE, NUM_CHANNELS))
+    eval_labels_node = tf.placeholder(tf.float32,
+                                       shape=(BATCH_SIZE, NUM_LABELS))
+    
+    return (train_data_node, train_labels_node, eval_data_node, eval_labels_node)
 
-# Convolution layers bounded with relus
-# def conv_layers_init(conv_arch, conv_params, prev_layer):
-#     for i, n_conv in enumerate(conv_arch):
-#         for layer in range(n_conv):
-# #             conv_weights = tf.assign(conv_biases, conv_params[i][layer][0])
-# #             conv_biases = conv_params[i][layer][1]
-#             conv = tf.nn.conv2d(prev_layer, conv_params[i][layer][0], strides=[1, 1, 1, 1], padding='SAME')
-#             relu = tf.nn.relu(tf.nn.bias_add(conv, conv_params[i][layer][1]))
-#             prev_layer = relu
+# def tf_var_declare(): 
+#     """Declare layer parameters and data nodes"""
 
-#         prev_layer = tf.nn.max_pool(prev_layer, ksize=[1, 2, 2, 1], strides = [1, 2, 2, 1], padding='SAME')
+#     conv1_weights = tf.Variable(
+#         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, NUM_CHANNELS, 32],  # 5x5 filter, depth 32.
+#                             stddev=0.1,
+#                             seed=SEED))
+#     conv1_biases = tf.Variable(tf.zeros([32]))
 
-#     return prev_layer
+#     conv12_weights = tf.Variable(
+#         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 32, 32],  # 5x5 filter, depth 32.
+#                             stddev=0.1,
+#                             seed=SEED))
+#     conv12_biases = tf.Variable(tf.zeros([32]))
 
+#     conv2_weights = tf.Variable(
+#         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 32, 64],
+#                             stddev=0.1,
+#                             seed=SEED))
+#     conv2_biases = tf.Variable(tf.constant(0.1, shape=[64]))
 
+#     conv22_weights = tf.Variable(
+#         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 64, 64],
+#                             stddev=0.1,
+#                             seed=SEED))
+#     conv22_biases = tf.Variable(tf.constant(0.1, shape=[64]))
 
-# Write predictions from neural network to a file
-# def write_predictions_to_file(predictions, labels, filename):
-#     max_labels = numpy.argmax(labels, 1)
-#     max_predictions = numpy.argmax(predictions, 1)
-#     file = open(filename, "w")
-#     n = predictions.shape[0]
-#     for i in range(0, n):
-#         file.write(max_labels(i) + ' ' + max_predictions(i))
-#     file.close()
+#     fc1_weights = tf.Variable(  # fully connected, depth 512.
+#         tf.truncated_normal([int(64*IMG_TOTAL_SIZE**2 / (2**LAYER_NUMBER)**2), 512],
+#                             stddev=0.1,
+#                             seed=SEED))
+#     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
 
-# Print predictions from neural network
-# def print_predictions(predictions, labels):
-#     max_labels = numpy.argmax(labels, 1)
-#     max_predictions = numpy.argmax(predictions, 1)
-#     print (str(max_labels) + ' ' + str(max_predictions))
+#     fc2_weights = tf.Variable(
+#         tf.truncated_normal([512, NUM_LABELS],
+#                             stddev=0.1,
+#                             seed=SEED))
+#     fc2_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
+    
+#     return (conv1_weights, conv1_biases, conv12_weights, conv12_biases, conv2_weights, conv2_biases, conv22_weights, conv22_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases)
