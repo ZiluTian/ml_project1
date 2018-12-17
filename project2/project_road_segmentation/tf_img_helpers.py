@@ -1,7 +1,26 @@
-import os 
+import os
 from PIL import Image
 import matplotlib.image as mpimg
-from tf_global_vars import * 
+from tf_global_vars import *
+
+def epoch_eval(s, accuracy, data_set, data_labels, batch_size, data_node, label_node):
+    set_len = len(data_set)
+    batch_nbr = int(set_len / batch_size) + 1
+    batch_idxs = numpy.array_split(range(set_len), batch_nbr)
+
+
+    acc = 0
+    for batch_idx in batch_idxs:
+        if len(batch_idx) < batch_size:
+            batch_idx = range(set_len)[-batch_size:]
+
+        feed_dict = {data_node: data_set[batch_idx],
+                     label_node: data_labels[batch_idx]}
+
+        acc += s.run(accuracy, feed_dict=feed_dict)
+    ave_acc = acc/batch_nbr*100
+
+    return ave_acc
 
 def img_crop(im, w, h, border=0):
     """ Crop an image into 'patches'.
@@ -12,15 +31,15 @@ def img_crop(im, w, h, border=0):
     list_patches = []
     img_width = im.shape[0]
     img_height = im.shape[1]
-    
-    try: 
+
+    try:
         img_channel = im.shape[2]
         if border != 0:
             im = numpy.array([numpy.pad(im[:, :, i], ((border, border), (border, border)), 'symmetric').T for i in range(img_channel)]).T
-    except IndexError: 
+    except IndexError:
         if border != 0:
             im = numpy.array([numpy.pad(im[:, :], ((border, border), (border, border)), 'symmetric').T]).T
-            
+
     for i in range(0, img_height, h):
         for j in range(0, img_width, w):
             im_patch = im[j:j + w + 2 * border, i:i + h + 2 * border]
@@ -35,9 +54,9 @@ def normalize_img(img):
 
 def img_float_to_uint8(img):
     rimg = img - numpy.min(img)
-#     if (numpy.max(rimg)!=0): 
+#     if (numpy.max(rimg)!=0):
 #         rimg = (rimg / numpy.max(rimg) * PIXEL_DEPTH).round().astype(numpy.uint8)
-#     else: 
+#     else:
 #         rimg = rimg.astype(numpy.uint8)
     rimg = (rimg / numpy.max(rimg) * PIXEL_DEPTH).round().astype(numpy.uint8)
     return rimg
@@ -87,8 +106,8 @@ def value_to_class(v):
         return [0, 1]
     else:
         return [1, 0]
-    
-    
+
+
 # Extract label images
 def extract_labels(filename, n_train, train_per, border, perm_index):
     """Extract the labels into a 1-hot matrix [image index, label index]."""
@@ -161,7 +180,7 @@ def make_img_overlay(img, predicted_img):
     background = Image.fromarray(img8, 'RGB').convert("RGBA")
     overlay = Image.fromarray(color_mask, 'RGB').convert("RGBA")
     new_img = Image.blend(background, overlay, 0.2)
-    return new_img  
+    return new_img
 
 
 # Make an image summary for 4d tensor image with index idx
@@ -187,5 +206,3 @@ def get_image_summary_3d(img):
     V = tf.transpose(V, (2, 0, 1))
     V = tf.reshape(V, (-1, img_w, img_h, 1))
     return V
-
-
