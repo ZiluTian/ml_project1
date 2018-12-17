@@ -58,46 +58,11 @@ def main(argv=None):  # pylint: disable=unused-argument
                             seed=SEED)), 
            'biases': tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))}   
 
-    def get_prediction(img):
-        data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE, BORDER))
-        data = normalize_img(data)
-        data_node = tf.constant(data)
-        output = tf.nn.softmax(model(data_node))
-        output_prediction = s.run(output)
-        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
-        return img_prediction
-
-    def get_prediction_with_groundtruth(filename, image_idx):
-        imageid = "satImage_%.3d" % image_idx
-        image_filename = filename + imageid + ".png"
-        img = mpimg.imread(image_filename)
-        img_prediction = get_prediction(img)
-        cimg = concatenate_images(img, img_prediction)
-        return cimg
-
-    def get_prediction_with_overlay_test(filename):
-        img = mpimg.imread(filename)
-        img_prediction = get_prediction(img)
-        oimg = make_img_overlay(img, img_prediction)
-        return oimg
-
-    def get_prediction_test(filename):
-        img = mpimg.imread(filename)
-        cimg = img_float_to_uint8(get_prediction(img))
-        return cimg
-
-    def get_prediction_with_overlay(filename, image_idx):
-        imageid = "satImage_%.3d" % image_idx
-        image_filename = filename + imageid + ".png"
-        img = mpimg.imread(image_filename)
-        img_prediction = get_prediction(img)
-        oimg = make_img_overlay(img, img_prediction)
-        return oimg
-
     def model(data):
         """The Model definition."""
         layer1 = create_layer(data, NUM_CHANNELS, 32) # depth 32 
         layer2 = create_layer(layer1, 32, 64)
+        
         conv_end_shape = layer2.get_shape().as_list()
         reshape = tf.reshape(
             layer2,
@@ -125,7 +90,6 @@ def main(argv=None):  # pylint: disable=unused-argument
     accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(predictions, 1), tf.argmax(eval_labels_node, 1)), tf.float32))
     train_all_prediction = tf.nn.softmax(model(train_all_data_node))
     saver = tf.train.Saver()
-    init = tf.global_variables_initializer()
 
     with tf.Session() as s:
 
@@ -134,7 +98,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             print("Model restored.")
 
         else:
-            s.run(init)
+            tf.global_variables_initializer().run()
 
             print("\n############################################################################")
             print ('Training CNN')
@@ -182,40 +146,25 @@ def main(argv=None):  # pylint: disable=unused-argument
                 save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
                 print("Model saved in file: %s" % save_path)
 
-        params['Average_acc_train'] = log_acc_train
-        params['Average_acc_test'] = log_acc_test
-        params['Batch_size'] = BATCH_SIZE
-        params['N_epochs'] = NUM_EPOCHS
-        params['Filter_size'] = FILTER_SIZE
-        params['Img_patch_size'] = IMG_PATCH_SIZE
-        params['Border'] = BORDER
+            params['Average_acc_train'] = log_acc_train
+            params['Average_acc_test'] = log_acc_test
+            params['Batch_size'] = BATCH_SIZE
+            params['N_epochs'] = NUM_EPOCHS
+            params['Filter_size'] = FILTER_SIZE
+            params['Img_patch_size'] = IMG_PATCH_SIZE
+            params['Border'] = BORDER
 
         if PREDICT_F1:
             print("\n############################################################################")
             print ("Running prediction on validation set")
             output = tf.nn.softmax(model(tf.constant(val_data)))
             output_prediction = s.run(output)
-            TP, FP, FN = f1_score(output_prediction,  val_labels)
-            precision = TP / (FP + TP)
-            recall = TP / (FN + TP)
-            f1 = 2 * (precision * recall) / (precision + recall)
+            f1 = f1_score(output_prediction,  val_labels)
             print('F1 score for validation set: %.3f' % f1)
             params['f1'] = f1
 
         if PREDICT_IMAGES:
-            print("\n############################################################################")
-            print ("Running prediction on testing set")
-            prediction_testing_dir = "predictions_testing/"
-            test_data_filename = ['test_set_images/test_'+str(i)+'/test_'+str(i)+'.png' for i in range(1,TESTING_SIZE+1)]
-
-            if not os.path.isdir(prediction_testing_dir):
-                os.mkdir(prediction_testing_dir)
-            for i in range(1, TESTING_SIZE+1):
-                pimg = get_prediction_test(test_data_filename[i - 1])
-                Image.fromarray(pimg).save(prediction_testing_dir + "prediction_" + str(i) + ".png")
-                oimg = get_prediction_with_overlay_test(test_data_filename[i - 1])
-                oimg.save(prediction_testing_dir + "overlay_" + str(i) + ".png")
-                print("Generated image prediction_" + str(i) + ".png")
+            predict_images(model, s)
             
         if LOG_PARAM:
             write_log(params) 

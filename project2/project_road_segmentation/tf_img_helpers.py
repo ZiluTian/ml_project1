@@ -8,7 +8,6 @@ def epoch_eval(s, accuracy, data_set, data_labels, batch_size, data_node, label_
     batch_nbr = int(set_len / batch_size) + 1
     batch_idxs = numpy.array_split(range(set_len), batch_nbr)
 
-
     acc = 0
     for batch_idx in batch_idxs:
         if len(batch_idx) < batch_size:
@@ -214,3 +213,55 @@ def get_image_summary_3d(img):
     V = tf.transpose(V, (2, 0, 1))
     V = tf.reshape(V, (-1, img_w, img_h, 1))
     return V
+
+def get_prediction(img, model, s):
+    data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE, BORDER))
+    data = normalize_img(data)
+    data_node = tf.constant(data)
+    output = tf.nn.softmax(model(data_node))
+    output_prediction = s.run(output)
+    img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
+    return img_prediction
+
+def get_prediction_with_groundtruth(filename, image_idx, model, s):
+    imageid = "satImage_%.3d" % image_idx
+    image_filename = filename + imageid + ".png"
+    img = mpimg.imread(image_filename)
+    img_prediction = get_prediction(img, model, s)
+    cimg = concatenate_images(img, img_prediction)
+    return cimg
+
+def get_prediction_with_overlay_test(filename, model, s):
+    img = mpimg.imread(filename)
+    img_prediction = get_prediction(img, model, s)
+    oimg = make_img_overlay(img, img_prediction)
+    return oimg
+
+def get_prediction_test(filename, model, s):
+    img = mpimg.imread(filename)
+    cimg = img_float_to_uint8(get_prediction(img, model, s))
+    return cimg
+
+def get_prediction_with_overlay(filename, image_idx, model, s):
+    imageid = "satImage_%.3d" % image_idx
+    image_filename = filename + imageid + ".png"
+    img = mpimg.imread(image_filename)
+    img_prediction = get_prediction(img, model, s)
+    oimg = make_img_overlay(img, img_prediction)
+    return oimg
+
+def predict_images(model, s): 
+    print("\n############################################################################")
+    print ("Running prediction on testing set")
+    prediction_testing_dir = "predictions_testing/"
+    test_data_filename = ['test_set_images/test_'+str(i)+'/test_'+str(i)+'.png' for i in range(1,TESTING_SIZE+1)]
+
+    if not os.path.isdir(prediction_testing_dir):
+        os.mkdir(prediction_testing_dir)
+    for i in range(1, TESTING_SIZE+1):
+        pimg = get_prediction_test(test_data_filename[i - 1], model, s)
+        Image.fromarray(pimg).save(prediction_testing_dir + "prediction_" + str(i) + ".png")
+        oimg = get_prediction_with_overlay_test(test_data_filename[i - 1], model, s)
+        oimg.save(prediction_testing_dir + "overlay_" + str(i) + ".png")
+        print("Generated image prediction_" + str(i) + ".png")
+        

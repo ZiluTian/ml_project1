@@ -1,7 +1,6 @@
 # General helper functions
 from tf_global_vars import *
 
-
 def f1_score(predictions, labels):
     pred_pos = numpy.argmax(predictions, 1) == 1
     pred_neg = numpy.argmax(predictions, 1) == 0
@@ -12,8 +11,13 @@ def f1_score(predictions, labels):
     TP = numpy.sum(numpy.logical_and(pred_pos, n_pos))
     FP = numpy.sum(numpy.logical_and(pred_pos, n_neg))
     FN = numpy.sum(numpy.logical_and(pred_neg, n_pos))
-
-    return (TP, FP, FN)
+    
+    precision = TP / (FP + TP)
+    recall = TP / (FN + TP)
+    
+    f1 = 2 * (precision * recall) / (precision + recall)
+            
+    return f1 
 
 def balance_data(train_data, train_labels): 
     c0 = 0
@@ -72,14 +76,15 @@ def create_layer(data, input_channels, depth):
                           padding='SAME')
     
     return pool 
-    
+   
     
 def write_log(params): 
-        log_file_name = "log_file.txt"
-        log_file = open(log_file_name, 'a')
-        log_file.write('\n\n')
-        for i, j in params.items():
-            log_file.write(i + ":" + str(j) + "\n")
-        log_file.close()
-            
+    log_file_name = "log_file.txt"
+    log_file = open(log_file_name, 'a')
+    log_file.write('\n\n')
+    for i, j in params.items():
+        log_file.write(i + ":" + str(j) + "\n")
+    log_file.close()
+    
+
                 
