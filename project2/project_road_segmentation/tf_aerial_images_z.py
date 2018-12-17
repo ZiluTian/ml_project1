@@ -87,11 +87,23 @@ def main(argv=None):  # pylint: disable=unused-argument
                             seed=SEED))
     conv1_biases = tf.Variable(tf.zeros([32]))
 
+    conv12_weights = tf.Variable(
+        tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 32, 32],  # 5x5 filter, depth 32.
+                            stddev=0.1,
+                            seed=SEED))
+    conv12_biases = tf.Variable(tf.zeros([32]))
+
     conv2_weights = tf.Variable(
         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 32, 64],
                             stddev=0.1,
                             seed=SEED))
     conv2_biases = tf.Variable(tf.constant(0.1, shape=[64]))
+
+    conv22_weights = tf.Variable(
+        tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 64, 64],
+                            stddev=0.1,
+                            seed=SEED))
+    conv22_biases = tf.Variable(tf.constant(0.1, shape=[64]))
 
     fc1_weights = tf.Variable(  # fully connected, depth 512.
         tf.truncated_normal([int(64*IMG_TOTAL_SIZE**2 / (2**LAYER_NUMBER)**2), 512],
@@ -160,17 +172,22 @@ def main(argv=None):  # pylint: disable=unused-argument
 
 #         conv_params, output_layer = conv_layers_param(CONV_ARCH, OUTPUT_CHANNELS, NUM_CHANNELS, seed=SEED)
 #         conv_end = conv_layers_init(CONV_ARCH, conv_params, data)
-        #zt [2,2,1] architecture
+
         conv1 = tf.nn.conv2d(data, conv1_weights, strides=[1, 1, 1, 1], padding='SAME')
         relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
-        pool = tf.nn.max_pool(relu1,
+        conv12 = tf.nn.conv2d(relu1, conv12_weights, strides=[1, 1, 1, 1], padding='SAME')
+        relu12 = tf.nn.relu(tf.nn.bias_add(conv12, conv12_biases))
+
+        pool = tf.nn.max_pool(relu12,
                               ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1],
                               padding='SAME')
         conv2 = tf.nn.conv2d(pool, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
         relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
+        conv22 = tf.nn.conv2d(relu2, conv22_weights, strides=[1, 1, 1, 1], padding='SAME')
+        relu22 = tf.nn.relu(tf.nn.bias_add(conv22, conv22_biases))
 
-        pool2 = tf.nn.max_pool(relu2,
+        pool2 = tf.nn.max_pool(relu22,
                               ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1],
                               padding='SAME')
@@ -288,6 +305,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             recall = TP / (FN + TP)
             f1 = 2 * (precision * recall) / (precision + recall)
             print('F1 score for validation set: %.3f' % f1)
+            params ['f1'] = f1
 
         if PREDICT_IMAGES:
             print("\n############################################################################")
