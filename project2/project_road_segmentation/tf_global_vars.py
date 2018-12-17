@@ -6,7 +6,7 @@ import numpy
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 100
+TRAINING_SIZE = 10
 TESTING_SIZE = 50
 TRAIN_PER = .8  # Size of the training set.
 SEED = 66478  # Set to None for random seed.

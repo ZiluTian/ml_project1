@@ -48,35 +48,32 @@ def balance_data(train_data, train_labels):
     print ('Number of data points per class: Background = ' + str(c0) + ' Road = ' + str(c1))
     return (train_data, train_labels)
 
-def tf_nodes_declare(): 
-    train_data_node = tf.placeholder(
-        tf.float32,
-        shape=(BATCH_SIZE, IMG_TOTAL_SIZE, IMG_TOTAL_SIZE, NUM_CHANNELS))
-    train_labels_node = tf.placeholder(tf.float32,
-                                       shape=(BATCH_SIZE, NUM_LABELS))
-    eval_data_node = tf.placeholder(
-        tf.float32,
-        shape=(BATCH_SIZE, IMG_TOTAL_SIZE, IMG_TOTAL_SIZE, NUM_CHANNELS))
-    eval_labels_node = tf.placeholder(tf.float32,
-                                       shape=(BATCH_SIZE, NUM_LABELS))
+def create_layer(data, input_channels, depth): 
+    conv1_weights = tf.Variable(
+            tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, input_channels, depth],  # 5x5 filter, depth 32.
+                                stddev=0.1,
+                                seed=SEED))
+    conv1_biases = tf.Variable(tf.zeros([depth]))
+
+    conv2_weights = tf.Variable(
+        tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, depth, depth],  
+                            stddev=0.1,
+                            seed=SEED))
+    conv2_biases = tf.Variable(tf.zeros([depth]))
+
+    conv1 = tf.nn.conv2d(data, conv1_weights, strides=[1, 1, 1, 1], padding='SAME')
+    relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
+    conv2 = tf.nn.conv2d(relu1, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
+    relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
+
+    pool = tf.nn.max_pool(relu2,
+                          ksize=[1, 2, 2, 1],
+                          strides=[1, 2, 2, 1],
+                          padding='SAME')
     
-    return (train_data_node, train_labels_node, eval_data_node, eval_labels_node)
+    return pool 
 
-# def tf_var_declare(): 
-#     """Declare layer parameters and data nodes"""
-
-#     conv1_weights = tf.Variable(
-#         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, NUM_CHANNELS, 32],  # 5x5 filter, depth 32.
-#                             stddev=0.1,
-#                             seed=SEED))
-#     conv1_biases = tf.Variable(tf.zeros([32]))
-
-#     conv12_weights = tf.Variable(
-#         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 32, 32],  # 5x5 filter, depth 32.
-#                             stddev=0.1,
-#                             seed=SEED))
-#     conv12_biases = tf.Variable(tf.zeros([32]))
-
+# def create_layer2(data): 
 #     conv2_weights = tf.Variable(
 #         tf.truncated_normal([FILTER_SIZE, FILTER_SIZE, 32, 64],
 #                             stddev=0.1,
@@ -88,17 +85,15 @@ def tf_nodes_declare():
 #                             stddev=0.1,
 #                             seed=SEED))
 #     conv22_biases = tf.Variable(tf.constant(0.1, shape=[64]))
-
-#     fc1_weights = tf.Variable(  # fully connected, depth 512.
-#         tf.truncated_normal([int(64*IMG_TOTAL_SIZE**2 / (2**LAYER_NUMBER)**2), 512],
-#                             stddev=0.1,
-#                             seed=SEED))
-#     fc1_biases = tf.Variable(tf.constant(0.1, shape=[512]))
-
-#     fc2_weights = tf.Variable(
-#         tf.truncated_normal([512, NUM_LABELS],
-#                             stddev=0.1,
-#                             seed=SEED))
-#     fc2_biases = tf.Variable(tf.constant(0.1, shape=[NUM_LABELS]))
     
-#     return (conv1_weights, conv1_biases, conv12_weights, conv12_biases, conv2_weights, conv2_biases, conv22_weights, conv22_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases)
+#     conv2 = tf.nn.conv2d(data, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
+#     relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
+#     conv22 = tf.nn.conv2d(relu2, conv22_weights, strides=[1, 1, 1, 1], padding='SAME')
+#     relu22 = tf.nn.relu(tf.nn.bias_add(conv22, conv22_biases))
+
+#     pool2 = tf.nn.max_pool(relu22,
+#                           ksize=[1, 2, 2, 1],
+#                           strides=[1, 2, 2, 1],
+#                           padding='SAME')
+        
+#     return pool2 
