@@ -3,23 +3,6 @@ from PIL import Image
 import matplotlib.image as mpimg
 from tf_global_vars import *
 
-def epoch_eval(s, accuracy, data_set, data_labels, batch_size, data_node, label_node):
-    set_len = len(data_set)
-    batch_nbr = int(set_len / batch_size) + 1
-    batch_idxs = numpy.array_split(range(set_len), batch_nbr)
-
-    acc = 0
-    for batch_idx in batch_idxs:
-        if len(batch_idx) < batch_size:
-            batch_idx = range(set_len)[-batch_size:]
-
-        feed_dict = {data_node: data_set[batch_idx],
-                     label_node: data_labels[batch_idx]}
-
-        acc += s.run(accuracy, feed_dict=feed_dict)
-    ave_acc = acc/batch_nbr*100
-
-    return ave_acc
 
 def img_crop(im, w, h, border=0):
     """ Crop an image into 'patches'.
@@ -46,23 +29,29 @@ def img_crop(im, w, h, border=0):
     return list_patches
 
 def normalize_img(img):
+    """ Normalize an img to range (0,1).
+        @param im : an RGB image.
+    """
     img[:,:,:,0] = (img[:,:,:,0] - numpy.mean(img[:,:,:,0]))/numpy.std(img[:,:,:,0])
     img[:,:,:,1] = (img[:,:,:,1] - numpy.mean(img[:,:,:,1]))/numpy.std(img[:,:,:,1])
     img[:,:,:,2] = (img[:,:,:,2] - numpy.mean(img[:,:,:,2]))/numpy.std(img[:,:,:,2])
     return img
 
 def img_float_to_uint8(img):
+    """ Convert the representation of each pixel in an image from float to uint8 
+        @param img : an image containing floating point representation 
+    """
     rimg = img - numpy.min(img)
-#     if (numpy.max(rimg)!=0):
-#         rimg = (rimg / numpy.max(rimg) * PIXEL_DEPTH).round().astype(numpy.uint8)
-#     else:
-#         rimg = rimg.astype(numpy.uint8)
     rimg = (rimg / numpy.max(rimg) * PIXEL_DEPTH).round().astype(numpy.uint8)
     return rimg
 
 def extract_train_data(n_train, train_per, border):
-    """Extract training images into a 4D tensor [image index, y, x, channels].
-    Values are rescaled from [0, 255] down to [-0.5, 0.5].
+    """Extract training images at specified direction into a 4D tensor [image index, y, x, channels].
+    Values are rescaled from [0, 255] down to [-0.5, 0.5]. 
+    @param n_train: the number of labeled training images 
+    @param train_per: percentage of training images used for training rather than validation
+    @param border: the neighboring pixels outside the patch used for classification
+    Return (train data, labels of train data, evaluation data, labels of evaluation data)
     """
     data_dir = 'training/'
     filename = data_dir + 'images/'
@@ -104,9 +93,9 @@ def extract_train_data(n_train, train_per, border):
     return (normalize_img(numpy.asarray(data)), labels_train, normalize_img(numpy.asarray(data_val)), labels_val)
 
 
-
-# Assign a label to a patch v
 def value_to_class(v):
+    """Assign a label to a patch v
+    @param v: an input patch """
     foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
     df = numpy.sum(v)
     if df > foreground_threshold:
@@ -115,10 +104,8 @@ def value_to_class(v):
         return [1, 0]
 
 
-# Extract label images
 def extract_labels(filename, n_train, train_per, border, perm_index):
-    """Extract the labels into a 1-hot matrix [image index, label index]."""
-
+    """Extract the labels from ground truth images into 1-hot matrix [image index, label index]."""
     gt_imgs = []
     for i in range(1, n_train+1):
         imageid = "satImage_%.3d" % i
@@ -147,8 +134,8 @@ def extract_labels(filename, n_train, train_per, border, perm_index):
     # Convert to dense 1-hot representation.
     return (labels_train.astype(numpy.float32), labels_val.astype(numpy.float32))
 
-# Convert array of labels to an image
 def label_to_img(imgwidth, imgheight, w, h, labels):
+    """Convert array of labels to an image""" 
     array_labels = numpy.zeros([imgwidth, imgheight])
     idx = 0
     for i in range(0,imgheight,h):
@@ -162,6 +149,7 @@ def label_to_img(imgwidth, imgheight, w, h, labels):
     return array_labels
 
 def concatenate_images(img, gt_img):
+    """concatenate a prediction image with ground truth image"""
     nChannels = len(gt_img.shape)
     w = gt_img.shape[0]
     h = gt_img.shape[1]
@@ -178,6 +166,7 @@ def concatenate_images(img, gt_img):
     return cimg
 
 def make_img_overlay(img, predicted_img):
+    """Create an overlay image with the prediction image added to the original image """
     w = img.shape[0]
     h = img.shape[1]
     color_mask = numpy.zeros((w, h, 3), dtype=numpy.uint8)
@@ -189,9 +178,8 @@ def make_img_overlay(img, predicted_img):
     new_img = Image.blend(background, overlay, 0.2)
     return new_img
 
-
-# Make an image summary for 4d tensor image with index idx
 def get_image_summary(img, idx = 0):
+    """Make an image summary for 4d tensor image with index idx"""
     V = tf.slice(img, (0, 0, 0, idx), (1, -1, -1, 1))
     img_w = img.get_shape().as_list()[1]
     img_h = img.get_shape().as_list()[2]
@@ -204,8 +192,8 @@ def get_image_summary(img, idx = 0):
     V = tf.reshape(V, (-1, img_w, img_h, 1))
     return V
 
-# Make an image summary for 3d tensor image with index idx
 def get_image_summary_3d(img):
+    """Make an image summary for 3d tensor image with index idx"""
     V = tf.slice(img, (0, 0, 0), (1, -1, -1))
     img_w = img.get_shape().as_list()[1]
     img_h = img.get_shape().as_list()[2]
@@ -215,6 +203,7 @@ def get_image_summary_3d(img):
     return V
 
 def get_prediction(img, model, s):
+    """Generate prediction of the input image based on the given model"""
     data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE, BORDER))
     data = normalize_img(data)
     data_node = tf.constant(data)
@@ -224,6 +213,7 @@ def get_prediction(img, model, s):
     return img_prediction
 
 def get_prediction_with_groundtruth(filename, image_idx, model, s):
+    """Generate prediction of an image specified at filename and concatenate with the ground truth image"""
     imageid = "satImage_%.3d" % image_idx
     image_filename = filename + imageid + ".png"
     img = mpimg.imread(image_filename)
@@ -232,25 +222,21 @@ def get_prediction_with_groundtruth(filename, image_idx, model, s):
     return cimg
 
 def get_prediction_with_overlay_test(filename, model, s):
+    """Generate prediction of an image specified at filename and overlay it on the original image"""    
     img = mpimg.imread(filename)
     img_prediction = get_prediction(img, model, s)
     oimg = make_img_overlay(img, img_prediction)
     return oimg
 
 def get_prediction_test(filename, model, s):
+    """Generate prediction of an image specified at filename and convert it to uint8 format"""    
     img = mpimg.imread(filename)
     cimg = img_float_to_uint8(get_prediction(img, model, s))
     return cimg
 
-def get_prediction_with_overlay(filename, image_idx, model, s):
-    imageid = "satImage_%.3d" % image_idx
-    image_filename = filename + imageid + ".png"
-    img = mpimg.imread(image_filename)
-    img_prediction = get_prediction(img, model, s)
-    oimg = make_img_overlay(img, img_prediction)
-    return oimg
 
 def predict_images(model, s): 
+    """If PREDICT_IMAGES true, generate prediction images"""    
     print("\n############################################################################")
     print ("Running prediction on testing set")
     prediction_testing_dir = "predictions_testing/"
